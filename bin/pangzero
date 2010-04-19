@@ -1,0 +1,5009 @@
+#!/usr/bin/perl -w
+
+
+$::Cheat = 0;
+$::Version = '1.3';
+$::DataDir = '';  # Set it to a path to avoid autodetection (e.g. /opt/pangzero/data)
+
+=comment
+
+##########################################################################
+#
+# PANG ZERO
+# Copyright (C) 2006 by UPi <upi at sourceforge.net>
+#
+##########################################################################
+
+This program is free software; you can redistribute it and//or modify
+it under the terms of the GNU General Public License version 2, as
+published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+
+##########################################################################
+# TODO:
+##########################################################################
+* P4 Bonus probability is balldesc based.
+* P3 Tour mode..?
+* P5 Graphics and help for machine gun and power wire
+* P5 Demo of beating the game at 'normal' difficulty
+* P4 Even more forgiving collision detection (?)
+* P4 Smooth numbers in the scoreboard
+* P3 RotoZoomer smooth parameter to eliminate warning..
+* P3 Set DataDir with command line parameter.
+* P2 Roll your own game
+* P4 Reorg menu: MenuItem->Update(), MenuItem->Left(), MenuItem->Right(), ...
+
+Next release:
+* Sound effect for matrix effect...
+* Handle possible HST corruption if game exits while merging scores
+
+
+##########################################################################
+# QUICK GUIDE FOR WOULD-BE DEVELOPERS
+##########################################################################
+
+'
+This file contains the entire source code of Pang Zero. I know that this is
+an odd design, but it works for me. You can split the file easily if you
+want to.
+
+The parts of the file are organized like this:
+
+1. INITIALIZATION OF GLOBAL OBJECTS (configuration, balls, levels, etc)
+2. HIGH SCORE TABLE
+3. GAME OBJECT PACKAGES
+4. UTILITY PACKAGES AND METHODS
+5. GAMEBASE AND DESCENDENT PACKAGES (includes the menu)
+6. "MAIN" PROGRAM LOOP
+'
+=cut
+
+
+use strict;
+use SDL;
+use SDL::App;
+use SDL::Event;
+use SDL::Surface;
+use SDL::Timer;
+use SDL::Palette;
+use SDL::Sound;
+use SDL::Mixer;
+use SDL::Font;
+use Carp;
+
+
+# SDL objects
+
+use vars qw (
+  $App $RotoZoomer $Background $ScoreFont $MenuFont $GlossyFont
+  %BallSurfaces
+  $BorderSurface $WhiteBorderSurface $RedBorderSurface $BonusSurface $LevelIndicatorSurface $LevelIndicatorSurface2
+  $WhiteHarpoonSurface
+  %Sounds $Mixer
+);
+
+# Pang Zero variables and objects
+
+use vars qw (
+  $DataDir $ScreenHeight $ScreenWidth $PhysicalScreenWidth $PhysicalScreenHeight $ScreenMargin
+  $SoundEnabled $MusicEnabled $FullScreen $ShowWebsite
+  $DeathBallsEnabled $EarthquakeBallsEnabled $WaterBallsEnabled $SeekerBallsEnabled $Slippery
+  @DifficultyLevels $DifficultyLevelIndex $DifficultyLevel
+  @WeaponDurations $WeaponDuration $WeaponDurationIndex
+  @GameObjects %GameEvents $GameSpeed $GamePause $Game
+  @Players @GuyImageFiles @GuyColors $NumGuys
+  @BallDesc %BallDesc @ChallengeLevels @PanicLevels
+  $UnicodeMode $LastUnicodeKey %Keys %Events %MenuEvents );
+
+##########################################################################
+# GLOBAL CONFIGURATION
+##########################################################################
+
+%Sounds = (
+  'pop' => 'pop.voc',
+  'shoot' => 'shoot.voc',
+  'death' => 'meow.voc',
+  'level' => 'level.voc',
+  'bonuslife' => 'magic.voc',
+  'pause' => 'pop3.voc',
+  'quake' => 'quake.voc',
+);
+
+@DifficultyLevels = (
+  { 'name' => 'Easy',     'spawnmultiplier' => 1.2, 'speed' => 0.8, 'harpoons' => 5, 'superball' => 0.8, 'bonusprobability' => 0.2, },
+  { 'name' => 'Normal',   'spawnmultiplier' => 1.0, 'speed' => 1.0, 'harpoons' => 3, 'superball' => 1.0, 'bonusprobability' => 0.1, },
+  { 'name' => 'Hard',     'spawnmultiplier' => 0.9, 'speed' => 1.2, 'harpoons' => 2, 'superball' => 1.1, 'bonusprobability' => 0.05, },
+  { 'name' => 'Nightmare','spawnmultiplier' => 0.8, 'speed' => 1.4, 'harpoons' => 2, 'superball' => 1.5, 'bonusprobability' => 0.02, },
+  { 'name' => 'Miki',     'spawnmultiplier' => 0.4, 'speed' => 1.0, 'harpoons' => 3, 'superball' => 1.0, 'bonusprobability' => 0.1, },
+);
+&SetDifficultyLevel(1);
+@WeaponDurations = (
+  { 'name' => 'Short (Default)', 'durationmultiplier' => 1, },
+  { 'name' => 'Medium', 'durationmultiplier' => 3, },
+  { 'name' => 'Long',   'durationmultiplier' => 6, },
+  { 'name' => 'Very Long', 'durationmultiplier' => 12, },
+  { 'name' => 'Forever', 'durationmultiplier' => 10000, },
+);
+&SetWeaponDuration(0);
+
+$NumGuys = 1;
+@Players = (
+  { 'keys'  => [SDLK_LEFT, SDLK_RIGHT, SDLK_UP], }, # blue
+  { 'keys'  => [SDLK_a, SDLK_d, SDLK_s], },         # red
+  { 'keys'  => [SDLK_j, SDLK_l, SDLK_k], },         # green
+  { 'keys'  => [SDLK_KP6, SDLK_KP4, SDLK_KP5], },   # pink
+  { 'keys'  => [SDLK_KP6, SDLK_KP4, SDLK_KP5], },   # yellow
+  { 'keys'  => [SDLK_KP6, SDLK_KP4, SDLK_KP5], },   # cyan
+  { 'keys'  => [SDLK_KP6, SDLK_KP4, SDLK_KP5], },   # gray
+  { 'keys'  => [SDLK_KP6, SDLK_KP4, SDLK_KP5], },   # snot
+  { 'keys'  => [SDLK_KP6, SDLK_KP4, SDLK_KP5], },   # purple
+);
+@GuyImageFiles = ( 'guyChristmas.png', 'guy_danigm.png', 'guy_pix.png', 'guy_pux.png', 'guy_r2.png', 'guy_sonic.png' );
+@GuyColors = ( [170, 255, 'blue'], [0, 255, 'red'], [85, 255, 'green'], [212, 255, 'pink'],
+               [42, 255, 'yellow'], [128, 255, 'cyan'], [128, 0, 'gray'], [113, 128, 'snot'], [212, 64, 'purple'] );
+for (my $i=0; $i<=$#Players; ++$i) {
+  $Players[$i]->{number} = $i;
+  $Players[$i]->{colorindex} = $i;
+  $Players[$i]->{imagefileindex} = $i % scalar(@GuyImageFiles);
+}
+
+my (%n0, %n1, %n2, %n3, %n4);
+%n0 = ('popIndex' => 0, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 128, -height => 106));
+%n1 = ('popIndex' => 1, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  96, -height =>  80));
+%n2 = ('popIndex' => 2, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  64, -height =>  53));
+%n3 = ('popIndex' => 3, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  32, -height =>  28));
+%n4 = ('popIndex' => 4, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  16, -height =>  15));
+
+@BallDesc = (
+# Normal balls (n0 .. n4)
+  { 'name' => 'n0', 'class' => 'Ball', 'score' =>  2000, 'spawndelay' =>   1, 'speedY' => 6.5, %n0, 'surface' => 'ball0', 'nextgen' => 'n1', },
+  { 'name' => 'n1', 'class' => 'Ball', 'score' =>  1000, 'spawndelay' => 0.5, 'speedY' => 5.7, %n1, 'surface' => 'ball1', 'nextgen' => 'n2', },
+  { 'name' => 'n2', 'class' => 'Ball', 'score' =>   800, 'spawndelay' => 0.25, 'speedY' => 5,  %n2, 'surface' => 'ball2', 'nextgen' => 'n3', },
+  { 'name' => 'n3', 'class' => 'Ball', 'score' =>   600, 'spawndelay' => 0.12, 'speedY' => 4,  %n3, 'surface' => 'ball3', 'nextgen' => 'n4', },
+  { 'name' => 'n4', 'class' => 'Ball', 'score' =>   500, 'spawndelay' => 0.05, 'speedY' => 3,  %n4, 'surface' => 'ball4', },
+# "Bouncy" balls (b0..b2)
+  { 'name' => 'b0', 'class' => 'Ball', 'score' =>  1500, 'spawndelay' => 0.5, 'speedY' => 5.7, %n2, 'surface' => 'bouncy2', 'nextgen' => 'b1', },
+  { 'name' => 'b1', 'class' => 'Ball', 'score' =>   750, 'spawndelay' => 0.2, 'speedY' => 5,   %n3, 'surface' => 'bouncy3', 'nextgen' => 'b2', },
+  { 'name' => 'b2', 'class' => 'Ball', 'score' =>   500, 'spawndelay' => 0.1, 'speedY' => 4.2, %n4, 'surface' => 'bouncy4' },
+# Hexas (h0..h2)
+  { 'name' => 'h0', 'class' => 'Hexa', 'score' =>  1500, 'spawndelay' => 0.5, 'popIndex' => 5, 'hexa' => 1,
+    'surface' => 'hexa0', 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 64, -height => 52), 'nextgen' => 'h1', },
+  { 'name' => 'h1', 'class' => 'Hexa', 'score' =>  1000, 'spawndelay' => 0.2, 'popIndex' => 6, 'hexa' => 1,
+    'surface' => 'hexa1', 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 32, -height => 28), 'nextgen' => 'h2', },
+  { 'name' => 'h2', 'class' => 'Hexa', 'score' =>   500, 'spawndelay' => 0.1, 'popIndex' => 7, 'hexa' => 1,
+    'surface' => 'hexa2', 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 16, -height => 14),
+    'magicrect' => new SDL::Rect(-x => 48, -y => 0, -width => 16, -height => 14), },
+# Water ball
+  { 'name' => 'w1', 'class' => 'WaterBall', 'score' =>  1500, 'spawndelay' => 0.4, 'speedY' => 5.7, %n1, 'surface' => 'blue1', 'nextgen' => 'w2', },
+  { 'name' => 'w2', 'class' => 'WaterBall', 'score' =>  1000, 'spawndelay' => 0.2, 'speedY' => 5,   %n2, 'surface' => 'blue2', 'nextgen' => 'w3', },
+  { 'name' => 'w3', 'class' => 'WaterBall', 'score' =>   800, 'spawndelay' => 0.1, 'speedY' => 4,   %n3, 'surface' => 'blue3', 'nextgen' => 'w4', },
+  { 'name' => 'w4', 'class' => 'WaterBall', 'score' =>   600, 'spawndelay' => 0.05, 'speedY' => 3,  %n4, 'surface' => 'blue4', },
+# Fragile
+  { 'name' => 'f0', 'class' => 'FragileBall', 'score' =>  1500, 'spawndelay' => 0.8, 'speedY' => 6.5, %n0, 'surface' => 'frag0', 'nextgen' => 'f1', },
+  { 'name' => 'f1', 'class' => 'FragileBall', 'score' =>  1500, 'spawndelay' => 0.4, 'speedY' => 5.7, %n1, 'surface' => 'frag1', 'nextgen' => 'f2', },
+  { 'name' => 'f2', 'class' => 'FragileBall', 'score' =>  1000, 'spawndelay' => 0.2, 'speedY' => 5,   %n2, 'surface' => 'frag2', 'nextgen' => 'f3', },
+  { 'name' => 'f3', 'class' => 'FragileBall', 'score' =>   800, 'spawndelay' => 0.1, 'speedY' => 4,   %n3, 'surface' => 'frag3', 'nextgen' => 'f4', },
+  { 'name' => 'f4', 'class' => 'FragileBall', 'score' =>   600, 'spawndelay' => 0.05, 'speedY' => 3,  %n4, 'surface' => 'frag4', },
+# Superball
+  { 'name' => 'super0', 'class' => 'SuperBall', 'score' =>  1000, 'spawndelay' => 0.5, 'speedY' => 5.7, %n1, 'surface' => 'green1', },
+  { 'name' => 'super1', 'class' => 'SuperBall', 'score' =>   800, 'spawndelay' => 0.25, 'speedY' => 5,  %n2, 'surface' => 'green2', },
+  { 'name' => 'xmas', 'class' => 'XmasBall', 'score' =>  1000, 'spawndelay' => 0.5, 'speedY' => 6.5, %n0, 'surface' => 'xmas', },
+# Death
+  { 'name' => 'death', 'class' => 'DeathBall', 'score' => 0, 'spawndelay' => 0.5, 'speedY' => 5, %n2, 'surface' => 'death2', 'nextgen' => 'death', },
+# Seeker
+  { 'name' => 'seeker', 'class' => 'SeekerBall', 'score' => 1200, 'spawndelay' => 0.2, 'speedY' => 5.7, %n2, 'surface' => 'white2', 'nextgen' => 'seeker1', },
+  { 'name' => 'seeker1', 'class' => 'SeekerBall', 'score' => 1200, 'spawndelay' => 0.1, 'speedY' => 5,  %n3, 'surface' => 'white3', },
+# Quake
+  { 'name' => 'quake',  'class' => 'EarthquakeBall', 'score' => 1600, 'spawndelay' => 0.7, 'speedY' => 5.7, %n2, 'surface' => 'quake2',
+    'quake' => 5, 'nextgen' => 'quake1', },
+  { 'name' => 'quake1', 'class' => 'EarthquakeBall', 'score' => 1200, 'spawndelay' => 0.2, 'speedY' => 5,   %n3, 'surface' => 'quake3',
+    'quake' => 3, 'nextgen' => 'quake2', },
+  { 'name' => 'quake2', 'class' => 'EarthquakeBall', 'score' => 1000, 'spawndelay' => 0.1, 'speedY' => 4.2, %n4, 'surface' => 'quake4',
+    'quake' => 2, },
+# Upside down ball
+  { 'name' => 'u0', 'class' => 'UpsideDownBall', 'score' =>  2000, 'spawndelay' =>   1, 'speedY' => 5.8, %n0, 'surface' => 'upside0', 'nextgen' => 'u1', },
+  { 'name' => 'u1', 'class' => 'UpsideDownBall', 'score' =>  1000, 'spawndelay' => 0.5, 'speedY' => 5.8, %n1, 'surface' => 'upside1', 'nextgen' => 'u2', },
+  { 'name' => 'u2', 'class' => 'UpsideDownBall', 'score' =>   800, 'spawndelay' => 0.25, 'speedY' =>5.8, %n2, 'surface' => 'upside2', 'nextgen' => 'u3', },
+  { 'name' => 'u3', 'class' => 'UpsideDownBall', 'score' =>   600, 'spawndelay' => 0.12, 'speedY' =>5.9, %n3, 'surface' => 'upside3', 'nextgen' => 'u4', },
+  { 'name' => 'u4', 'class' => 'UpsideDownBall', 'score' =>   500, 'spawndelay' => 0.05, 'speedY' =>5.9, %n4, 'surface' => 'upside4', },
+
+  { 'name' => 'credits1', 'class' => 'Ball', 'speedY' => 6.1, 'nextgen' => 'credits1', 'surface' => 'blue3', %n3 },
+  { 'name' => 'credits2', 'class' => 'Ball', 'speedY' => 6.1, 'nextgen' => 'credits2', 'surface' => 'ball3',  %n3 },
+);
+{
+  foreach my $ballDesc (@BallDesc) {
+    $ballDesc->{width} = $ballDesc->{rect}->width();
+    $ballDesc->{height} = $ballDesc->{rect}->height();
+    $BallDesc{$ballDesc->{name}} = $ballDesc;
+  }
+  foreach my $ballDesc (@BallDesc) {
+    my $nextgen = $ballDesc->{nextgen};
+    $ballDesc->{nextgen} = $BallDesc{$nextgen} if $nextgen;
+  }
+}
+
+@ChallengeLevels = (
+  'n4 n4 n4 n4 xmas',
+  'n3 n3 n3',
+  'n2 n2',
+  'b0 b0',
+  'h2 h2 h2 h2 h2 h2',
+  'h0 h0',
+  'n1 f2',
+  'w1 n2',
+  'n0 b0 w1 h0',
+# 10
+  'n1 quake',
+  'n1 b0 quake',
+  'w1 seeker u2',
+  'n0 seeker seeker',
+  'w1 w1',
+  'f1 quake h0',
+  'w1 seeker h0 h0',
+  'n0 w1 w1 b0 h0',
+  'u0 u0 quake',
+  'quake quake w1 b0 h0',
+# 20
+  'death n1 b0',
+  'n4 ' x 24,
+  'w1 w1 w1 f0',
+  'death w1 h0',
+  'n0 n0 u0 seeker h2 h2 b0',
+  'n4 b2 h2 u4 ' x 6,
+  'quake quake quake b0',
+  'h0 h0 h0 h0 h0 h0 h0 h0',
+  'quake seeker f3 n1 b0 b0',
+  'death death w1 f0 n0 u2 h0',
+# 30
+  'n0 n0 u0 u0',
+  'death quake n1',
+  'b0 h0 n2 ' x 3,
+  'w1 w1 w1 w1 f1 f1',
+  'n3 n3 n3 u3 ' x 4,
+  'quake quake seeker seeker n0 f0',
+  'seeker ' x 8,
+  'n0 n1 n2 n3 n4 b0 f2 h0 h1 h2 w1 seeker',
+  'quake quake quake h0 h0 h0 u2',
+  'death quake seeker w1 n0 b0 h0',
+# 40
+  'n0 n1 n2 ' x 3,
+  'death quake seeker u2 ' x 3,
+  'f0 f0',
+  'death quake f0 n1 ' x 2,
+  'h0 ' x 8 . ' f0 f1 ',
+  'death ' x 10,
+  'quake b0 ' x 5,
+  'w1 w1 f0 f1 death',
+  'seeker ' x 13,
+  'n0 u0 w1 f0 quake death ' x 2,
+);
+
+for ( my $i = 0; $i < 10; ++$i) {
+  $ChallengeLevels[$i + 49] = $ChallengeLevels[$i +  9] . ' ' . $ChallengeLevels[$i + 29];
+  $ChallengeLevels[$i + 59] = $ChallengeLevels[$i + 19] . ' ' . $ChallengeLevels[$i + 39];
+}
+foreach (@ChallengeLevels) {
+  while (/(\w+)/g) {
+    die "Unknown ball '$1' in challenge '$_'" unless defined $BallDesc{$1};
+  }
+}
+
+my %BallMixes = (
+  'easy'   => [ qw(n0  2 n1 20 n2 10 n3 3 n4 2  f0 3  f1 5  f2 5  b0 5 b1 2 b2 1   w1 10  h0 5  h1 3 h2 1     quake 1   seeker  2  u1 1 u2 2 u3 4 u4 1) ],
+  'medium' => [ qw(n0 10 n1 20 n2 10 n3 3 n4 2  f0 3  f1 3  b0 10 b1 2 b2 1  w1 15  h0 15 h1 5 h2 1  death 2  quake 5   seeker 10  u0 2 u1 5 u2 5 u3 5) ],
+  'bouncy' => [ qw(n0 20 n1 10 n2 5 n3 1 n4 1   f0 3  f1 3  b0 30 b1 9 b2 1  w1 10  h0 15 h1 5       death 5  quake 10  seeker 15  u0 5 u1 5 u2 1 u3 1) ],
+  'hard'   => [ qw(n0 20 n1 10 n2 5 n3 1        f0 5  f1 1  b0 20 b1 2       w1 20  h0 20 h1 5       death 10 quake 15  seeker 20  u0 5 u1 5 u2 1 u3 1) ],
+  'watery' => [ qw(n0 20 n1 10 n2 5 n3 1 n4 1   f0 3  f1 1  b0 10 b1 5       w1 50  h0 15 h1 5       death 5  quake 10  seeker 15  u0 1 u1 5 u2 5 u3 1) ],
+  'hexas'  => [ qw(n0 20 n1 10 n2 5 n3 1        f0 3  f1 1  b0 15 b1 2       w1 20  h0 40 h1 15      death 5  quake 10  seeker 15  u0 1 u1 8 u2 2 u3 1) ],
+  'quakes' => [ qw(n0 15 n1 10 n2 5 n3 1        f0 3  f1 1  b0 15            w1 15  h0 20 h1 5       death 5  quake 40  seeker 15  u0 8 u1 1 u2 2 u3 1) ],
+);
+
+sub AddLevels {
+  my ($num, $balls, $gamespeedStart, $gamespeedEnd, $spawndelayStart, $spawndelayEnd) = @_;
+  my ($i, $level);
+
+  for ($i = 0; $i < $num; ++$i) {
+    $level = {
+      'balls' => $balls,
+      'gamespeed' => $gamespeedStart + ($gamespeedEnd - $gamespeedStart) * ($i) / ($num),
+      'spawndelay' => $spawndelayStart + ($spawndelayEnd - $spawndelayStart) * ($i) / ($num),
+    };
+    push @PanicLevels, ( $level );
+  }
+}
+
+&AddLevels(  9, $BallMixes{easy},   0.75, 1.25, 20, 20 ); # 0-9
+&AddLevels( 10, $BallMixes{medium}, 0.7 , 1.3 , 20, 15 ); # 1x
+&AddLevels( 10, $BallMixes{hard},   0.7 , 1.5 , 15, 15 ); # 2x
+&AddLevels( 10, $BallMixes{hexas},  1.0 , 1.5 , 15, 12 ); # 3x
+&AddLevels( 10, $BallMixes{watery}, 0.7 , 1.7 , 15, 17 ); # 4x
+&AddLevels( 10, $BallMixes{bouncy}, 1.0 , 2.0 , 12, 12 ); # 5x
+&AddLevels( 10, $BallMixes{quakes}, 1.5 , 2.2 , 13,  8 ); # 6x
+&AddLevels( 10, $BallMixes{hard},   1.0 , 2.2 , 13, 10 ); # 7x
+&AddLevels( 10, $BallMixes{hexas},  1.3 , 2.4 , 12,  9 ); # 8x
+&AddLevels( 10, $BallMixes{hard},   2.0 , 3.0 , 13, 10 ); # 9x
+
+# Set defaults
+
+$ScreenMargin = 16;
+$ScreenWidth =  800 - $ScreenMargin * 2;
+$ScreenHeight = 416;
+$SoundEnabled = 1;
+$MusicEnabled = 1;
+$DeathBallsEnabled = 1;
+$EarthquakeBallsEnabled = 1;
+$WaterBallsEnabled = 1;
+$SeekerBallsEnabled = 1;
+$FullScreen = 1;
+$UnicodeMode = 0;
+$Slippery = 0;
+$ShowWebsite = 0;
+
+
+##########################################################################
+# CONFIG SAVE/LOAD
+##########################################################################
+
+sub IsMicrosoftWindows {
+  return $^O eq 'MSWin32';
+}
+
+
+sub TestDataDir {
+  return -f "$DataDir/glossyfont.png";   # Should be a file from the latest version.
+}
+
+sub FindDataDir {
+  return if $DataDir and &TestDataDir();
+  my @guesses = qw( . .. /usr/share/pangzero /usr/share/games/pangzero /usr/local/share/pangzero /opt/pangzero/ /opt/pangzero);
+  foreach my $guess (@guesses) {
+    $DataDir = $guess;
+    return if &TestDataDir();
+    $DataDir = "$guess/data";
+    return if &TestDataDir();
+  }
+  die "Couldn't find the data directory. Please set it manually.";
+}
+
+sub GetConfigFilename {
+  if ( &IsMicrosoftWindows() ) {
+    if ($ENV{USERPROFILE}) {
+      return "$ENV{USERPROFILE}\\pangzero.cfg";
+    }
+    return "$DataDir/pangzero.cfg";
+  }
+  if ($ENV{HOME}) {
+    return "$ENV{HOME}/.pangzerorc";
+  }
+  if (-w $DataDir) {
+    return "$DataDir/pangzero.cfg";
+  }
+  return "/tmp/pangzero.cfg";
+}
+
+sub GetConfigVars {
+  my ($i, $j);
+  my @result = qw(NumGuys DifficultyLevelIndex WeaponDurationIndex Slippery MusicEnabled SoundEnabled FullScreen ShowWebsite
+    DeathBallsEnabled EarthquakeBallsEnabled WaterBallsEnabled SeekerBallsEnabled);
+  for ($i=0; $i < scalar @Players; ++$i) {
+    for ($j=0; $j < 3; ++$j) {
+      push @result, ("Players[$i]->{keys}->[$j]");
+    }
+    push @result, ("Players[$i]->{colorindex}");
+    push @result, ("Players[$i]->{imagefileindex}");
+  }
+  my ($difficulty, $gameMode);
+  for ($difficulty=0; $difficulty < scalar @DifficultyLevels; ++$difficulty) {
+    foreach $gameMode ('highScoreTablePan', 'highLevelTablePan', 'highScoreTableCha', 'highLevelTableCha') {
+      next if ($DifficultyLevels[$difficulty]->{name} eq 'Miki' and $gameMode eq 'highScoreTableCha');
+      for ($i=0; $i < 5; ++$i) {
+        push @result, "DifficultyLevels[$difficulty]->{$gameMode}->[$i]->[0]", # Name of high score
+                      "DifficultyLevels[$difficulty]->{$gameMode}->[$i]->[1]", # High score
+      }
+    }
+  }
+  return @result;
+}
+
+sub SaveConfig {
+  my ($filename, $varname, $value);
+  $filename = &GetConfigFilename();
+
+  open CONFIG, "> $filename" or return;
+  foreach $varname (&GetConfigVars) {
+    eval("\$value = \$$varname"); die $@ if $@;
+    print CONFIG "$varname = $value\n";
+  }
+  close CONFIG;
+}
+
+sub LoadConfig {
+  my ($filename, $text, $varname);
+
+  $text = '';
+  $filename = &GetConfigFilename();
+  if (open CONFIG, "$filename") {
+    read CONFIG, $text, 16384;
+    close CONFIG;
+  }
+  
+  foreach $varname (&GetConfigVars) {
+    my $pattern = $varname;
+    $pattern =~ s/\[/\\[/g;
+    if ($text =~ /$pattern = (.+?)$/m) {
+      eval( "\$$varname = '$1'" );
+    }
+  }
+  &SetDifficultyLevel($DifficultyLevelIndex);
+  &SetWeaponDuration($WeaponDurationIndex);
+}
+
+sub SetDifficultyLevel {
+  my $difficultyLevelIndex = shift;
+  if ($difficultyLevelIndex < 0 or $difficultyLevelIndex > $#DifficultyLevels) {
+    $difficultyLevelIndex = $DifficultyLevelIndex;
+  }
+  $DifficultyLevelIndex = $difficultyLevelIndex;
+  $DifficultyLevel = $DifficultyLevels[$difficultyLevelIndex];
+}
+
+sub SetWeaponDuration {
+  my $weaponDurationIndex = shift;
+  if ($weaponDurationIndex < 0 or $weaponDurationIndex > $#WeaponDurations) {
+    $weaponDurationIndex = $WeaponDurationIndex;
+  }
+  $WeaponDurationIndex = $weaponDurationIndex;
+  $WeaponDuration = $WeaponDurations[$WeaponDurationIndex];
+}
+
+
+##########################################################################
+# HIGH SCORE TABLE
+##########################################################################
+
+use vars qw( @UnsavedHighScores );
+
+foreach (@DifficultyLevels) {
+  $_->{highScoreTablePan} = [ ['UPI', 250000], ['UPI', 200000], ['UPI', 150000], ['UPI', 100000], ['UPI', 50000] ];
+  $_->{highScoreTablePan} = [ ['UPI', 2500], ['UPI', 2000], ['UPI', 1500], ['UPI', 1000], ['UPI', 500] ] if $_->{name} eq 'Miki';
+  $_->{highLevelTablePan} = [ ['UPI', 50], ['UPI', 40], ['UPI', 30], ['UPI', 20], ['UPI', 10] ];
+  $_->{highLevelTablePan} = [ ['UPI', 20], ['UPI', 16], ['UPI', 12], ['UPI', 8], ['UPI', 4] ] if $_->{name} eq 'Miki';
+  $_->{highScoreTableCha} = [ ['UPI', 250000], ['UPI', 200000], ['UPI', 150000], ['UPI', 100000], ['UPI', 50000] ];
+  $_->{highLevelTableCha} = [ ['UPI', 30], ['UPI', 25], ['UPI', 20], ['UPI', 15], ['UPI', 10] ];
+}
+
+sub AddHighScore {
+  my ($player, $score, $level) = @_;
+  
+  unshift @UnsavedHighScores, [$player, $score, $level];
+}
+
+sub MergeUnsavedHighScores {
+  my ($table) = @_;
+  my ($unsavedHighScore, $player, $score, $level);
+  
+  die unless ($table =~ /^(Cha|Pan)$/);
+  foreach $unsavedHighScore (@UnsavedHighScores) {
+    ($player, $score, $level) = @{$unsavedHighScore};
+    &MergeUnsavedHighScore( $DifficultyLevel->{"highScoreTable$table"}, $player, $score );
+    &MergeUnsavedHighScore( $DifficultyLevel->{"highLevelTable$table"}, $player, $level );
+  }
+  
+  splice @{$DifficultyLevel->{"highScoreTable$table"}}, 5;
+  splice @{$DifficultyLevel->{"highLevelTable$table"}}, 5;
+  @UnsavedHighScores = ();
+  my $newHighScore = &InputPlayerNames($table);
+  if ($newHighScore) {
+    $Game->RunHighScore( $DifficultyLevelIndex, $table, 0 );
+  }
+}
+
+sub MergeUnsavedHighScore {
+  my ($highScoreList, $player, $score) = @_;
+  my ($i);
+  
+  for ($i = 0; $i < scalar @{$highScoreList}; ++$i) {
+    if ($highScoreList->[$i]->[1] < $score) {
+      splice @{$highScoreList}, $i, 0, [$player, $score];
+      return;
+    }
+  }
+}
+
+sub InputPlayerNames {
+  my ($table) = @_;
+  my ($highScoreEntry, $player, $score, $message, $retval);
+  
+  die unless ($table =~ /^(Cha|Pan)$/);
+  $retval = 0;
+  foreach $highScoreEntry (@{$DifficultyLevel->{"highScoreTable$table"}}, @{$DifficultyLevel->{"highLevelTable$table"}}) {
+    $player = $highScoreEntry->[0];
+    next unless ref $player;
+    unless ($player->{highScoreName}) {
+      $score = $highScoreEntry->[1];
+      $message = $score < 1000 ? "Level $score" : "Score $score";
+      $player->{highScoreName} = &InputPlayerName($player, $message);
+    }
+    $highScoreEntry->[0] = $player->{highScoreName};
+    $retval = 1;
+  }
+  foreach $player (@Players) {
+    delete $player->{highScoreName};
+  }
+  return $retval;
+}
+
+sub InputPlayerName {
+  my ($player, $message) = @_;
+  my ($guy, $name, $nameMenuItem, @menuItems, $x, $y, $yInc);
+  
+  SDL::EnableUnicode(1); $UnicodeMode = 1;
+  $name = ($player->{name} or '') . '|';
+  
+  $guy = new Guy($player);
+  ($guy->{x}, $guy->{y}) = (150, 150);
+  $guy->DemoMode();
+  
+  ($x, $y, $yInc) = (230, 80, 45);
+  push @menuItems, (
+    new MenuItem( $x, $y += $yInc, "HIGH SCORE!!!"),
+    new MenuItem( $x, $y += $yInc, $message),
+    new MenuItem( $x, $y += $yInc, "Please enter your name:"),
+    $nameMenuItem = new MenuItem( $x, $y += $yInc, $name ),
+  );
+  push @GameObjects, ($guy, @menuItems);
+  
+  while (1) {
+    $LastUnicodeKey = 0;
+    $Game->MenuAdvance();
+    last if $Game->{abortgame};
+    if (%Events) {
+      my ($key) = %Events;
+      if ($key == SDLK_BACKSPACE) {
+        substr($name, -2, 1, '');        # Remove next to last char
+        $nameMenuItem->SetText($name);
+      } elsif ($key == SDLK_RETURN) {
+        last;
+      } elsif ($LastUnicodeKey < 127 and $LastUnicodeKey >= 32 and length($name) < 9) {
+        substr($name, -1, 0, chr($LastUnicodeKey));   # Insert before last char
+        $nameMenuItem->SetText($name);
+      }
+    }
+  }
+  $name =~ s/\|$//;
+  $player->{name} = $name;
+  $name = "Anonymous" if $name =~ /^\s*$/;
+  $guy->Delete();
+  foreach (@menuItems) { $_->Delete(); }
+  SDL::EnableUnicode(0); $UnicodeMode = 0;
+  return $name;
+}
+
+
+##########################################################################
+# GAME OBJECT CLASSES
+##########################################################################
+
+package GameObject;
+package Ball;
+package Hexa;
+package SuperBall;
+package DeathBall;
+package SeekerBall;
+package EarthquakeBall;
+package WaterBall;
+package Pop;
+package GamePause;
+package BonusDrop;
+package SlowEffect;
+package Guy;
+package Harpoon;
+package MachineGun;
+package PowerWire;
+package HalfCutter;
+package DeadGuy;
+
+
+##########################################################################
+package GameObject;
+##########################################################################
+
+sub new {
+  my ($class) = @_;
+  my $self = {
+    'rect' => new SDL::Rect( -x => 0, -y => 0, -width => 0, -height => 0 ),
+    'speedX' => 0,
+    'speedY' => 0,
+    'x' => 0,
+    'y' => 0,
+    'w' => 10,
+    'h' => 10,
+  };
+  bless $self, $class;
+}
+
+sub Delete {
+  my $self = shift;
+  my ($i);
+
+  for ($i = 0; $i < scalar @::GameObjects; ++$i) {
+    if ($::GameObjects[$i] eq $self) {
+      splice @::GameObjects, $i, 1;
+      last;
+    }
+  }
+  $self->{deleted} = 1;
+  $self->Clear();
+}
+
+sub Advance {
+  my $self = shift;
+  
+  $self->{advance}->($self) if $self->{advance};
+}
+
+sub Clear {
+  my ($self) = @_;
+  $::Background->blit($self->{rect}, $::App, $self->{rect});
+}
+
+sub TransferRect {
+  my ($self) = @_;
+
+  $self->{rect}->x($self->{x} + $::ScreenMargin);
+  $self->{rect}->y($self->{y} + $::ScreenMargin);
+  $self->{rect}->width($self->{w});
+  $self->{rect}->height($self->{h});
+}
+
+sub Draw {
+  my ($self) = @_;
+
+  $self->TransferRect();
+  if ($self->{draw}) {
+    $self->{draw}->($self);
+  } else {
+    $::App->fill( $self->{rect}, new SDL::Color(-r => 0x80) );
+  }
+}
+
+sub SetupCollisions {
+  my ($self) = @_;
+  
+  $self->{collisionw} = ($self->{collisionw} or $self->{w});
+  $self->{collisionh} = ($self->{collisionh} or $self->{h});
+  $self->{collisionmarginw1} = ( $self->{w} - $self->{collisionw} ) / 2;
+  $self->{collisionmarginw2} = $self->{collisionmarginw1} + $self->{collisionw};
+  $self->{collisionmarginh1} = ( $self->{h} - $self->{collisionh} ) / 2;
+  $self->{collisionmarginh2} = $self->{collisionmarginh1} + $self->{collisionh};
+  $self->{centerx} = $self->{w} / 2;
+  $self->{centery} = $self->{y} / 2;
+}
+
+sub Collisions {
+  my ($self, $other) = @_;
+  
+  # Bounding box detection
+  
+  unless ($self->{collisionmarginw1} and $other->{collisionmarginw1}) {
+    return 0 if $self->{x} >= $other->{x} + $other->{w};
+    return 0 if $other->{x} >= $self->{x} + $self->{w};
+    return 0 if $self->{y} >= $other->{y} + $other->{h};
+    return 0 if $other->{y} >= $self->{y} + $self->{h};
+    return 1;
+  }
+  
+  return 0 if $self->{x} + $self->{collisionmarginw1} >= $other->{x} + $other->{collisionmarginw2};
+  return 0 if $other->{x} + $other->{collisionmarginw1} >= $self->{x} + $self->{collisionmarginw2};
+  return 0 if $self->{y} + $self->{collisionmarginh1} >= $other->{y} + $other->{collisionmarginh2};
+  return 0 if $other->{y} + $other->{collisionmarginh1} >= $self->{y} + $self->{collisionmarginh2};
+  return 1;
+}
+
+##########################################################################
+package Ball;
+##########################################################################
+
+@Ball::ISA = qw(GameObject);
+$Ball::Gravity = 0.05;
+$Ball::MagicBallRect = new SDL::Rect(-x => 80, -y => 0, -width => 16, -height => 15);
+
+for (my $i=0; $i <= $#::BallDesc; ++$i) {
+  my $desc = $::BallDesc[$i];
+  $desc->{speedY} = 0 unless $desc->{speedY};
+  $desc->{bounceY} = $desc->{speedY} * $desc->{speedY} / $Ball::Gravity / 2 unless $desc->{bounceY};
+}
+
+sub Create {
+  my ($description, $x, $y, $dir) = @_;
+  my ($retval);
+
+  eval("\$retval = new $description->{class}(\@_);"); die $@ if $@;
+  return $retval;
+}
+
+sub Spawn {
+  my ($description, $x, $dir, $hasBonus) = @_;
+  my ($retval);
+  
+  $x = $::Game->Rand( $::ScreenWidth - $description->{width} ) if $x < 0;
+  $retval = &Create( $description, $x, -$description->{height} - $::ScreenMargin, $dir );
+  $retval->GiveMagic() if $retval->{w} > 32;
+  $retval->GiveBonus() if $hasBonus;
+
+  $retval->{spawning} = 1;
+  my $surfaceName = 'dark' . $description->{surface};
+  $retval->{surface} = $::BallSurfaces{$surfaceName};
+  die "No surface: $surfaceName" unless $retval->{surface};
+  return $retval;
+}
+
+sub new {
+  my ($class, $description, $x, $y, $dir) = @_;
+  my ($self);
+
+  $self = new GameObject;
+  %{$self} = ( %{$self},
+    'x' => $x,
+    'y' => $y,
+    'w' => $description->{width},
+    'h' => $description->{height},
+    'surface' => $::BallSurfaces{$description->{surface}},
+    'hexa' => $description->{hexa} ? 1 : 0,
+    'desc' => $description,
+    'hasmagic' => 0,        # true if one of the ball's descendants is magic
+    'ismagic' => 0,         # true if the ball IS magic
+    'spawning' => 0,
+  );
+  $self->{speedX} = $dir > 0 ? 1.3 : -1.3;
+  $self->SetupCollisions();
+  bless $self, $class;
+}
+
+sub NormalAdvance {
+  my $self = shift;
+  
+  $self->{speedY} += $Ball::Gravity * $::GameSpeed unless ($self->{hexa});
+  $self->{x} += $self->{speedX} * $::GameSpeed;
+  $self->{y} += $self->{speedY} * $::GameSpeed;
+  if ($self->{y} > $::ScreenHeight - $self->{h}) {
+    $self->{y} = $::ScreenHeight - $self->{h};
+    if ($self->{hexa}) {
+      $self->{speedY} = -abs($self->{speedY});
+    } else {
+      $self->{speedY} = -$self->{desc}->{speedY};
+    }
+    $self->Bounce;
+  }
+  if ($self->{y} < 0) {
+    $self->{y} = 0;
+    $self->{speedY} = abs($self->{speedY});
+  }
+  if ($self->{x} < 0) {
+    $self->{x} = 0;
+    $self->{speedX} = abs( $self->{speedX} );
+  }
+  if ($self->{x} > $::ScreenWidth - $self->{w}) {
+    $self->{x} = $::ScreenWidth - $self->{w};
+    $self->{speedX} = -abs( $self->{speedX} );
+  }
+}
+
+sub SpawningAdvance {
+  my $self = shift;
+
+  $self->{y} += 0.32;
+  if ($self->{y} >= 0) {
+    $self->{spawning} = 0;
+    $self->{surface} = $::BallSurfaces{$self->{desc}->{surface}},
+  }
+}
+
+sub Advance {
+  my $self = shift;
+
+  unless( $::GamePause > 0 ) {
+    if ($self->{spawning}) {
+      $self->SpawningAdvance();
+    } else {
+      $self->NormalAdvance();
+    }
+  }
+
+  $self->CheckCollisions() unless $::Game->{nocollision} or $self->{spawning};
+}
+
+sub Bounce {
+}
+
+sub CheckCollisions {
+  my $self = shift;
+  my ($harpoon, $guy);
+
+  foreach $harpoon (values %Harpoon::Harpoons) {
+    if ($self->Collisions($harpoon)) {
+      $self->Pop($harpoon->{guy}, $harpoon->{popEffect});
+      $harpoon->Delete();
+      return;
+    }
+  }
+  foreach $guy (values %Guy::Guys) {
+    if ($::GamePause <= 0 and $self->Collisions($guy)) {
+      $guy->Kill();
+    }
+  }
+}
+
+sub Draw {
+  my ($self) = @_;
+
+  return if $::GamePause > 0 and $::GamePause < 100 and (int($::GamePause / 3) % 4) < 2;
+  
+  $self->TransferRect();
+  if ($self->{ismagic} and int($::Game->{anim}/4) % 2) {
+    $::BallSurfaces{ball4}->blit( $Ball::MagicBallRect, $::App, $self->{rect} );
+  } else {
+    $self->{surface}->blit( $self->{desc}->{rect}, $::App, $self->{rect} );
+  }
+}
+
+sub Collisions {
+  my ($self, $other) = @_;
+
+  # Bounding box detection
+
+  return unless $self->SUPER::Collisions($other);
+
+  # Circle vs rectangle collision
+
+  my ($centerX, $centerY, $boxAxisX, $boxAxisY, $boxCenterX, $boxCenterY, $distSquare, $distance);
+  $boxAxisX = ($other->{collisionw} or $other->{w}) / 2;
+  $boxAxisY = ($other->{collisionh} or $other->{h}) / 2;
+  $boxCenterX = $other->{x} + $other->{w} / 2;
+  $boxCenterY = $other->{y} + $other->{h} / 2;
+  $centerX = $self->{x} + $self->{w} / 2;
+  $centerY = $self->{y} + $self->{h} / 2;
+
+  # Translate coordinates to the box center
+  $centerX -= $boxCenterX;
+  $centerY -= $boxCenterY;
+  $centerX = abs($centerX);
+  $centerY = abs($centerY);
+
+  if ($centerX < $boxAxisX) {
+    return 1 if $centerY < $boxAxisY + $self->{h} / 2;
+    return 0;
+  }
+  if ($centerY < $boxAxisY) {
+    return 2 if $centerX < $boxAxisX + $self->{w} / 2;
+    return 0;
+  }
+  $distSquare = ($centerX-$boxAxisX) * ($centerX-$boxAxisX);
+  $distSquare+= ($centerY-$boxAxisY) * ($centerY-$boxAxisY);
+  return 3 if $distSquare < $self->{h} * $self->{h} / 4;
+
+  return 0;
+}
+
+sub Pop {
+  my ($self, $guy, $popEffect) = @_;
+
+  Carp::confess "no $popEffect" unless defined $popEffect;
+  $::GameEvents{'pop'} = 1;
+  $::GameEvents{'magic'} = 1 if ($self->{ismagic});
+  $guy->GiveScore($self->{desc}->{score}) if $guy;
+  $self->Delete();
+  
+  goto skipChildren if ($popEffect eq 'meltdown');
+  
+  if ($self->{desc}->{nextgen}) {
+    my @children = $self->SpawnChildren();
+    if (scalar @children) {
+      $self->AdjustChildren(@children);
+      if ($popEffect eq 'HalfCutter') {
+        push @::GameObjects, ($self->{speedX} > 0 ? $children[1] : $children[0]);
+      } else {
+        push @::GameObjects, (@children);
+      }
+    }
+  }
+  if ($self->{bonus} and $popEffect ne 'superkill') {
+    push @::GameObjects, (new BonusDrop($self));
+  }
+  $::Game->OnBallPopped();
+  
+  skipChildren:
+  push @::GameObjects, (new Pop($self->{x}, $self->{y}, $self->{desc}->{popIndex}, $self->{surface}));
+}
+
+sub SpawnChildren {
+  my $self = shift;
+  my ($nextgen, $child1, $child2, $x, $y);
+
+  $nextgen = $self->{desc}->{nextgen};
+  $x = $self->{x} + $self->{w} / 2;
+  $y = $self->{y} + ( $self->{h} - $nextgen->{height} ) / 2;
+
+  $child1 = &Create($nextgen, $self->{x}, $y, 0);
+  $child2 = &Create($nextgen, $self->{x} + $self->{w} - $nextgen->{width}, $y, 1);
+  return ($child1, $child2);
+}
+
+sub AdjustChildren {
+  my ($self, @children) = @_;
+  my ($nextgen, $speedY, $altitude);
+
+  if ($self->{hasmagic}) {
+    $children[0]->GiveMagic();
+  }
+
+  $nextgen = $self->{desc}->{nextgen};
+  $altitude = $::ScreenHeight - $self->{y} - $self->{h};
+  if ($altitude > $nextgen->{bounceY}) {
+    $speedY = 1.8;
+  } else {
+    $speedY = 1.8;
+    while ($speedY * $speedY / $Ball::Gravity / 2 + $altitude < $nextgen->{bounceY}) {
+      ++$speedY;
+    }
+  }
+  foreach (@children) {
+    $_->{speedY} = -$speedY;
+  }
+}
+
+sub GiveMagic {
+  my $self = shift;
+
+  $self->{hasmagic} = 1;
+  $self->{ismagic} = 1 unless $self->{desc}->{nextgen};
+}
+
+sub GiveBonus {
+  my $self = shift;
+
+  $self->{bonus} = 1;
+}
+
+
+
+##########################################################################
+package Hexa;
+##########################################################################
+
+@Hexa::ISA = qw(Ball);
+
+sub new {
+  my $class = shift;
+  my ($self);
+
+  $self = new Ball(@_);
+  $self->{speedX} = ($::Game->Rand(1.25) + 1.25) * ($self->{speedX} > 0 ? 1 : -1);
+  $self->{speedY} = -4 + abs($self->{speedX});
+
+  bless $self, $class;
+}
+
+sub Draw {
+  my $self = shift;
+  my ($rect, $srcx, $phase);
+
+  return if $::GamePause > 0 and $::GamePause < 100 and (int($::GamePause / 3) % 4) < 2;
+  
+  $self->TransferRect();
+  if ($self->{ismagic} and int($::Game->{anim} / 3) % 3 == 0) {
+    $self->{surface}->blit($self->{desc}->{magicrect}, $::App, $self->{rect});
+  } else {
+    $rect = $self->{desc}->{rect};
+    $phase = int($::Game->{anim} / 5) % 3;
+    $phase = 2 - $phase if $self->{speedX} < 0;
+    $srcx = $phase * $self->{w};
+    $rect->x( $rect->x + $srcx );
+    $self->{surface}->blit( $rect, $::App, $self->{rect} );
+    $rect->x( $rect->x - $srcx );
+  }
+}
+
+sub AdjustChildren {
+  my ($self, $child1, $child2) = @_;
+  if ($self->{hasmagic}) {
+    $child2->GiveMagic();
+  }
+}
+
+
+##########################################################################
+package WaterBall;
+##########################################################################
+
+@WaterBall::ISA = qw( Ball );
+
+sub Bounce {
+  my $self = shift;
+  if ($self->{desc}->{nextgen}) {
+    $self->{bonus} = 0;
+    $self->Pop(undef, '');
+  }
+}
+
+
+##########################################################################
+package FragileBall;
+##########################################################################
+
+@FragileBall::ISA = qw( Ball );
+
+sub Bounce {
+  my $self = shift;
+  if ($self->{desc}->{nextgen}) {
+    $self->{bonus} = 0;
+    $self->Pop(undef, '');
+  }
+  #$self->{speedX} = ($self->{speedX} > 0) ? 1.3 : -1.3;
+}
+
+sub SpawnChildren {
+  my $self = shift;
+  my ($nextgen, $numchildren, @children, $child, $i, $y);
+  
+  $nextgen = $self->{desc}->{nextgen};
+  $numchildren = 2;
+  while ($nextgen->{nextgen}) {
+    $nextgen = $nextgen->{nextgen};
+    $numchildren *= 2;
+  }
+  $y = $self->{y} + ($self->{h} - $nextgen->{height}) / 2;
+  for ($i = 0; $i < $numchildren; ++$i) {
+    $child = &Ball::Create($nextgen, $self->{x}, $y, 0);
+    $child->{speedX} = -1.5 + ($i / ($numchildren-1) * 3);
+    $child->{x} = $self->{x} + ($self->{w} - $child->{w}) * ($i / ($numchildren-1));
+    push @children, $child;
+  }
+  return @children;
+}
+
+
+##########################################################################
+package SeekerBall;
+##########################################################################
+
+@SeekerBall::ISA = qw( Ball );
+
+sub new {
+  my $class = shift;
+  my ($self);
+
+  $self = new Ball(@_);
+  my @guys = grep {ref $_ eq 'Guy'} @::GameObjects;
+  $self->{target} = $guys[$::Game->Rand(scalar @guys)];
+  $self->{deltaX} = (-$self->{w} + $self->{target}->{w}) / 2;
+  die unless $self->{target};
+
+  bless $self, $class;
+}
+
+sub NormalAdvance {
+  my $self = shift;
+  
+  my $multiplier = ($self->{y} > $::ScreenHeight - 120) ? 0 : 25;
+  unless( $::GamePause > 0 ) {
+    if ($self->{x} + $self->{speedX} * $multiplier > $self->{target}->{x} + $self->{deltaX}) {
+      $self->{speedX} -= 0.08;
+    } else {
+      $self->{speedX} += 0.08;
+    }
+  }
+  $self->SUPER::NormalAdvance();
+}
+
+sub AdjustChildren {
+  my ($self, $child1, $child2) = @_;
+  
+  $self->SUPER::AdjustChildren($child1, $child2);
+  $child1->{speedX} *= 2;
+  $child1->{deltaX} -= 30;
+  $child1->{target} = $self->{target};
+  $child2->{speedX} *= 2;
+  $child2->{deltaX} += 30;
+  $child2->{target} = $self->{target};
+}
+
+sub GiveMagic {
+}
+
+sub Draw {
+  my $self = shift;
+  my ($guySurface, $srcrect, $dstrect);
+  
+  $self->SUPER::Draw();
+  $guySurface = $self->{target}->{player}->{guySurface};
+  if ($self->{w} <= 32) {
+    $srcrect = new SDL::Rect(-width => 16, -height => 16, -x =>320, -y => 176);
+  } else {
+    $srcrect = new SDL::Rect(-width => 32, -height => 32, -x =>320, -y => 128);
+  }
+  $dstrect = new SDL::Rect(
+    -x => $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->width()) / 2, 
+    -y => $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->height()) / 2 + 2);
+  $guySurface->blit($srcrect, $::App, $dstrect);
+}
+
+
+##########################################################################
+package SuperBall;
+##########################################################################
+
+@SuperBall::ISA = qw(Ball);
+
+sub new {
+  my $class = shift;
+  my ($self);
+
+  $self = new Ball(@_);
+  $self->{effect} = 1;   # 0 : superpause;  1 : superkill
+  bless $self, $class;
+  $self->SwitchEffect();
+  return $self;
+}
+
+sub SwitchEffect {
+  my $self = shift;
+  
+  $self->{effect} = 1 - $self->{effect};
+  $self->{surface} = $::BallSurfaces{($self->{effect} ? 'gold' : 'green') . ($self->{w} > 64 ? 1 : 2)};
+}
+
+sub Bounce {
+  my $self = shift;
+
+  $self->SwitchEffect();
+}
+
+sub SpawnChildren {
+  return ();
+}
+
+sub Pop {
+  my $self = shift;
+  my ($poppedBy) = @_;
+
+  $self->SUPER::Pop(@_);
+  if ($self->{effect} == 0) {
+    $::GameEvents{superpause} = 1;
+  } else {
+    $::GameEvents{superkill} = 1;
+    $::GameEvents{superkillguy} = $poppedBy;
+  }
+}
+
+sub GiveMagic {
+}
+
+
+##########################################################################
+package XmasBall;
+##########################################################################
+
+@XmasBall::ISA = qw(Ball);
+
+sub SpawnChildren {
+  return ();
+}
+
+sub Pop {
+  my $self = shift;
+  my ($bonusdrop, @collectedSubs);
+  
+  $self->SUPER::Pop(@_);
+  $bonusdrop = new BonusDrop($self);
+  @collectedSubs = ( \&OnCollectedLife, \&OnCollectedScore, \&OnCollectedScore, \&OnCollectedInvulnerability, \&OnCollectedInvulnerability );
+  if ($::Game->Rand(2 * scalar @collectedSubs) < scalar @collectedSubs) {
+    $bonusdrop->{desc} = { 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>0, -y=>0), };
+    $bonusdrop->SetOnCollectedSub( $collectedSubs[int $::Game->Rand(scalar @collectedSubs)] );
+  }
+  push @::GameObjects, $bonusdrop;
+}
+
+sub GiveMagic {
+}
+sub GiveBonus {
+}
+
+sub OnCollectedLife {
+  my ($bonus, $guy) = @_;
+  $guy->{player}->{lives}++;
+  &::PlaySound('bonuslife');
+}
+
+sub OnCollectedScore {
+  my ($bonus, $guy) = @_;
+  $guy->GiveScore(50000);
+  &::PlaySound('score');
+}
+
+sub OnCollectedInvulnerability {
+  my ($bonus, $guy) = @_;
+  $guy->{invincible} = 500;
+}
+
+
+##########################################################################
+package DeathBall;
+##########################################################################
+
+@DeathBall::ISA = qw(Ball);
+
+sub new {
+  my $class = shift;
+  my ($self);
+
+  $self = new Ball(@_);
+  $self->{expires} = 2000;   # 20sec
+  $self->{speedX} *= 0.9;
+  bless $self, $class;
+}
+
+sub NormalAdvance {
+  my $self = shift;
+
+  $self->SUPER::NormalAdvance();
+  if (--$self->{expires} < 0) {
+    $self->{bonus} = 1 if $self->{hasmagic};
+    $self->Pop(undef, 'expire');
+  }
+
+}
+
+sub Pop {
+  my ($self, $guy, $popEffect) = @_;
+  
+  $self->{dontspawn} = 1 if $popEffect eq 'expire' or $popEffect eq 'superkill';
+  $self->SUPER::Pop($guy, $popEffect);
+  if (&CountDeathBalls() > 30) {
+    $::GameEvents{'meltdown'} = 1;
+  }
+}
+
+sub SpawnChildren {
+  my $self = shift;
+
+  return if $self->{dontspawn};
+  $self->SUPER::SpawnChildren(@_);
+}
+
+sub CountDeathBalls {
+  my $count = 0;
+
+  foreach my $ball (@::GameObjects) {
+    if (ref($ball) eq 'DeathBall') { ++$count; }
+  }
+  return $count;
+}
+
+
+##########################################################################
+package EarthquakeBall;
+##########################################################################
+
+@EarthquakeBall::ISA = qw(Ball);
+
+sub new {
+  my $class = shift;
+  my ($self);
+
+  $self = new Ball(@_);
+  bless $self, $class;
+}
+
+sub CountEarthquakeBalls {
+  my $count = 0;
+
+  foreach my $ball (@::GameObjects) {
+    if (ref($ball) eq 'EarthquakeBall') { ++$count; }
+  }
+  return $count;
+}
+
+sub Bounce {
+  my $self = shift;
+
+  unless ($::GameEvents{earthquake} and $::GameEvents{earthquake} > $self->{desc}->{quake}) {
+    $::GameEvents{earthquake} = [$self->{desc}->{quake}, $self->{x}];
+  }
+}
+
+
+##########################################################################
+package UpsideDownBall;
+##########################################################################
+
+@UpsideDownBall::ISA = qw( Ball );
+
+sub NormalAdvance {
+  my ($self) = @_;
+  
+  $self->{speedY} = -$self->{speedY};
+  $self->{y} = $::ScreenHeight - $self->{h} - $self->{y};
+  $self->SUPER::NormalAdvance();
+  $self->{speedY} = -$self->{speedY};
+  $self->{y} = $::ScreenHeight - $self->{h} - $self->{y};
+}
+
+
+##########################################################################
+package Pop;
+##########################################################################
+
+@Pop::ISA = qw(GameObject);
+
+@Pop::Description = (
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' => 128, 'srcy' => 0, 'sizex' => 128, 'sizey' => 106, },
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' =>  96, 'srcy' => 0, 'sizex' =>  96, 'sizey' =>  80, },
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' =>  64, 'srcy' => 0, 'sizex' =>  64, 'sizey' =>  53, },
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' =>  32, 'srcy' => 0, 'sizex' =>  32, 'sizey' =>  28, },
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' =>  16, 'srcy' => 0, 'sizex' =>  16, 'sizey' =>  15, },
+
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' => 192, 'srcy' => 0, 'sizex' =>  64, 'sizey' =>  52, },
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' =>  96, 'srcy' => 0, 'sizex' =>  32, 'sizey' =>  28, },
+  { 'xoffset' => 0, 'yoffset' =>  0, 'srcx' =>  48, 'srcy' => 0, 'sizex' =>  16, 'sizey' =>  14, },
+);
+
+sub new {
+  my ($class, $x, $y, $index, $surface) = @_;
+  my ($self, $desc);
+
+  $desc = $Pop::Description[$index],
+  $self = new GameObject;
+  %{$self} = ( %{$self},
+    'x' => $x + $desc->{xoffset},
+    'y' => $y + $desc->{yoffset},
+    'w' => $desc->{sizex},
+    'h' => $desc->{sizey},
+    'desc' => $desc,
+    'anim' => 0,
+    'surface' => $surface,
+  );
+  bless $self, $class;
+}
+
+sub Advance {
+  my $self = shift;
+
+  ++$self->{anim};
+  if ($self->{anim} >= 20) {
+    $self->Delete();
+  }
+}
+
+sub Draw {
+  my $self = shift;
+  my ($phase, $srcrect);
+
+  $self->TransferRect();
+  $phase = int($self->{anim} / 5);
+  $phase = 3 if $phase > 3;
+
+  $srcrect = new SDL::Rect(
+    -x => $self->{desc}->{srcx} + $phase * $self->{w},
+    -y => $self->{desc}->{srcy},
+    -width => $self->{w},
+    -height => $self->{h} );
+  $self->{surface}->blit( $srcrect, $::App, $self->{rect} );
+}
+
+
+##########################################################################
+package GamePause;
+##########################################################################
+
+@GamePause::ISA = qw(GameObject);
+
+sub Show {
+  foreach my $gameObject (@::GameObjects) {
+    return if (ref $gameObject eq 'GamePause');
+  }
+  push @::GameObjects, (new GamePause);
+}
+
+sub new {
+  my ($class) = @_;
+
+  my $self = new GameObject;
+  my ($width);
+  $width = &::TextWidth("Time left: 9.999");
+
+  %{$self} = ( %{$self},
+    'x' => ($::PhysicalScreenWidth - $width) / 2,
+    'y' => 100,
+    'w' => $width,
+    'h' => 32,
+  );
+  $self->TransferRect();
+  bless $self, $class;
+}
+
+sub BringToFront {
+  my $self = shift;
+
+  @::GameObjects = grep { $_ ne $self } @::GameObjects;
+  push @::GameObjects, ($self);
+}
+
+sub Advance {
+  my $self = shift;
+
+  if ($::GamePause <= 0) {
+    $self->Delete;
+    return;
+  }
+  unless ($::GameObjects[$#::GameObjects] eq $self) {
+    $self->BringToFront();
+  }
+}
+
+sub Draw {
+  my $self = shift;
+
+  $::App->print( $self->{rect}->x, $self->{rect}->y, "Time left: " . ($::GamePause / 100) );
+}
+
+
+##########################################################################
+package FpsIndicator;
+##########################################################################
+
+@FpsIndicator::ISA = qw(GameObject);
+
+sub new {
+  my ($class) = @_;
+
+  my $self = new GameObject;
+  my ($width);
+  $width = &::TextWidth("999");
+
+  %{$self} = ( %{$self},
+    'x' => $::ScreenWidth - $width + $::ScreenMargin,
+    'y' => -$::ScreenMargin,
+    'w' => $width,
+    'h' => 32,
+  );
+  $self->TransferRect();
+  bless $self, $class;
+}
+
+sub Draw {
+  my $self = shift;
+
+  $::App->print( $self->{rect}->x, $self->{rect}->y, &GameTimer::GetFramesPerSecond() );
+}
+
+
+##########################################################################
+package BonusDrop;
+##########################################################################
+
+@BonusDrop::ISA = qw(GameObject);
+use vars qw(@BonusDesc);
+
+@BonusDesc = (
+  { 'weaponClass' => 'MachineGun', 'bonusDelay' => 1500, 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>0 , -y=>64), },
+  { 'weaponClass' => 'HalfCutter', 'bonusDelay' => 1000, 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>32, -y=>64), },
+  { 'weaponClass' => 'PowerWire',  'bonusDelay' => 3000, 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>32, -y=>96), },
+  { 'onCollectedSub' => \&OnCollectedSlowEffect,         'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>32, -y=>0), },
+);
+
+
+sub new {
+  my ($class, $ball) = @_;
+  my ($self);
+
+  $self = new GameObject;
+
+  %{$self} = ( %{$self},
+    'x' => $ball->{x} + ($ball->{w} - 32) / 2,
+    'y' => $ball->{y} + ($ball->{h} - 32) / 2,
+    'w' => 32,
+    'h' => 32,
+    'speedY' => -3,
+    'speedX' => 0,
+    'bottomDelay' => 500,
+    'desc' => $BonusDesc[int $::Game->Rand(scalar @BonusDesc)],
+  );
+  bless $self, $class;
+}
+
+sub Advance {
+  my $self = shift;
+
+  if ($self->{y} >= $::ScreenHeight - $self->{h}) {
+    $self->{y} = $::ScreenHeight - $self->{h};
+    if (--$self->{bottomDelay} < 0) {
+      $self->Delete();
+    }
+  } else {
+    $self->{speedY} += 0.1;
+    $self->{y} += $self->{speedY};
+  }
+
+  $self->CheckCollisions() if $self->{speedY} >= 0;
+}
+
+sub CheckCollisions {
+  my $self = shift;
+  my ($guy, @guysTouched);
+
+  foreach $guy (@::GameObjects) {
+    next unless ref($guy) eq 'Guy';
+    next unless $self->Collisions($guy);
+    push @guysTouched, ($guy);
+  }
+  return unless @guysTouched;
+  $self->Collected($guysTouched[$::Game->Rand( scalar @guysTouched )]);
+}
+
+sub SetOnCollectedSub {
+  my ($self, $onCollectedSub) = @_;
+  $self->{onCollectedSub} = $onCollectedSub;
+}
+
+sub Collected {
+  my ($self, $guy) = @_;
+  
+  if ($self->{onCollectedSub}) {
+    $self->{onCollectedSub}->($self, $guy);
+  } elsif ($self->{desc}->{onCollectedSub}) {
+    $self->{desc}->{onCollectedSub}->($self, $guy);
+  } else {
+    $guy->{weapon} = $self->{desc}->{weaponClass};
+    $guy->{bonusDelay} = $self->{desc}->{bonusDelay} * $::WeaponDuration->{durationmultiplier};
+  }
+  $self->Delete();
+}
+
+sub Draw {
+  my $self = shift;
+
+  return if $self->{bottomDelay} < 100 and (($::Game->{anim} / 4) % 2 < 1);
+  $self->TransferRect();
+  $::BonusSurface->blit($self->{desc}->{srcRect}, $::App, $self->{rect});
+}
+
+sub OnCollectedSlowEffect {
+  my ($self, $guy) = @_;
+  
+  &SlowEffect::RemoveSlowEffects();
+  push @::GameObjects, (new SlowEffect());
+}
+
+
+##########################################################################
+package SlowEffect;
+##########################################################################
+
+@SlowEffect::ISA = qw(GameObject);
+
+sub new {
+  my ($class) = @_;
+  my ($self);
+
+  $self = new GameObject;
+  %{$self} = ( %{$self},
+    'timeout' => 1500, # Lasts for 15s
+  );
+  # TODO Play a sound here
+  bless $self, $class;
+  return $self;
+}
+
+sub RemoveSlowEffects {
+  @::GameObjects = grep { ref $_ ne 'SlowEffect' } @::GameObjects;
+}
+
+sub Advance {
+  my ($self) = @_;
+  my ($timeout, $slowratio);
+  
+  $timeout = --$self->{timeout};
+  if ( $timeout == 256 ) {
+    # TODO Play a sound here
+  }
+  if ( $timeout > 256 ) {
+    $::GameSpeed = 0.2;
+  } elsif ( $timeout > 0 ) {
+    $::Game->SetGameSpeed();
+    $slowratio = int(256 - $timeout) / 256;
+    $::GameSpeed = $::GameSpeed * $slowratio + 0.2 * (1.0 - $slowratio);
+  } else {
+    $::Game->SetGameSpeed();
+    $self->Delete();
+    return;
+  }
+}
+
+sub Draw {
+}
+
+sub Clear {
+}
+
+
+##########################################################################
+package Guy;
+##########################################################################
+
+@Guy::ISA = qw(GameObject);
+use vars qw(%Guys $GuyId);
+
+sub new {
+  my ($class, $player) = @_;
+  my ($self, $number);
+
+  $self = new GameObject;
+  $number = $player->{number};
+
+  %{$self} = ( %{$self},
+    'player' => $player,
+    'number' => $number,
+    'x' => $player->{startX},
+    'y' => $::ScreenHeight - 64,
+    'w' => 64,
+    'h' => 64,
+    'collisionw' => '28',
+    'collisionh' => '48',
+    'delay' => 0,
+    'speedY' => 0,
+    'speedX' => 0,
+    'dir' => $number % 2,
+    'state' => 'idle',
+    'killed' => 0,
+    'harpoons' => 0,
+    'invincible' => 0,
+    'surface' => $player->{guySurface},
+    'whiteSurface' => $player->{whiteGuySurface},
+    'weapon' => 'Harpoon',
+    'bonusDelay' => 0,
+    'id' => ++$GuyId,
+  );
+  bless $self, $class;
+  $self->SetupCollisions();
+  $self->CalculateAnimPhases();
+  $Guys{$self->{id}} = $self;
+  return $self;
+}
+
+sub Delete {
+  my $self = shift;
+  
+  $self->SUPER::Delete;
+  delete $Guys{$self->{id}};
+}
+
+sub CalculateAnimPhases {
+  my $self = shift;
+  
+  $self->{animPhases} = $self->{player}->{guySurface}->width() / 128,
+}
+
+sub DemoMode {
+  my ($self) = shift;
+  $self->{state} = 'demo';
+  $self->{dir} = 1;
+}
+
+sub Fire {
+  my ($self) = @_;
+
+  if ($self->{harpoons} < $::DifficultyLevel->{harpoons}) {
+    ++$self->{harpoons};
+    eval("unshift \@::GameObjects, ($self->{weapon}::Create(\$self));");
+    $self->{state} = 'shoot';
+    $self->{delay} = 7;
+    ::PlaySound('shoot');
+    return 1;
+  }
+  return 0;
+}
+
+sub AdvanceWhileFlying {
+  my $self = shift;
+
+  $self->{speedY} += $Ball::Gravity * 2;
+  $self->{y} += $self->{speedY};
+  $self->{x} += $self->{dir} > 0 ? 1 : -1;
+  if ($self->{x} < -16) {
+    $self->{x} = 0; $self->{dir} = 1;
+  }
+  if ($self->{x} > $::ScreenWidth - $self->{w} + 16) {
+    $self->{x} = $::ScreenWidth - $self->{w}; $self->{dir} = 0;
+  }
+  if ($self->{y} >= $::ScreenHeight - $self->{h}) {
+    $self->{state} = 'idle';
+    $self->{y} = $::ScreenHeight - $self->{h};
+    $self->{speedX} = $self->{dir} ? 1 : -1;
+  }
+}
+
+sub Advance {
+  my ($self) = @_;
+  my ($slippery, $keys);
+  
+  $slippery = $::Slippery ? 0.0625 : 0;
+
+  return if $self->{killed};
+  return if $self->{state} eq 'demo';
+  --$self->{invincible};
+
+  if ($self->{bonusDelay} > 0) {
+    --$self->{bonusDelay};
+    $self->{weapon} = 'Harpoon' if $self->{bonusDelay} <= 0;
+  }
+
+  if ($self->{state} eq 'fly') {
+    $self->AdvanceWhileFlying();
+    return;
+  }
+  
+  if ($self->{delay} > 0) {
+    --$self->{delay};
+    $keys = [ 0, 0, 0 ];
+  } else {
+    $keys = $self->{player}->{keys};
+  }
+
+  $self->{speedX} = 0 unless $slippery;
+  $self->{state} = 'idle';
+  
+  if ( $::Events{$keys->[2]} ) {
+    return if $self->Fire();
+  }
+  if ( $::Keys{$keys->[0]} ) {
+    if ($slippery) {
+      $self->{speedX} -= $slippery * 2 if $self->{speedX} > -3;
+    } else {
+      $self->{speedX} = -3;
+    }
+    $self->{dir} = 0;
+    $self->{state} = 'walk';
+  } elsif ( $::Keys{$keys->[1]} ) {
+    if ($slippery) {
+      $self->{speedX} += $slippery * 2 if $self->{speedX} < 3;
+    } else {
+      $self->{speedX} = 3;
+    }
+    $self->{dir} = 1;
+    $self->{state} = 'walk';
+  } else {
+    if ($slippery) {
+      $self->{speedX} += $slippery if $self->{speedX} < 0;
+      $self->{speedX} -= $slippery if $self->{speedX} > 0;
+    }
+  }
+  $self->{x} += $self->{speedX};
+
+  if ($self->{x} < -16) {
+    $self->{x} = -16; $self->{speedX} = 0;
+  }
+  if ($self->{x} > $::ScreenWidth - $self->{w} + 16) {
+    $self->{x} = $::ScreenWidth - $self->{w} + 16; $self->{speedX} = 0;
+  }
+}
+
+sub Draw {
+  my ($self) = @_;
+  my ($surface, $srcrect, $srcx, $srcy, $srcw, $srch);
+
+  return if ($self->{killed});
+  $surface = $self->{surface};
+  $surface = $self->{whiteSurface} if $self->{invincible} > 0 and (int($self->{invincible} / 2) % 3 == 0);
+
+  $srcw = $srch = 64;
+  if ($self->{state} eq 'idle') {
+    $srcx = $self->{dir} * 128;
+    $srcy = 64;
+  } elsif ($self->{state} eq 'walk') {
+    $srcx = $self->{dir} * $self->{animPhases} * 64 + (int($self->{x} / 50) % $self->{animPhases}) * 64;
+    $srcy = 0;
+  } elsif ($self->{state} eq 'demo') {
+    $srcx = $self->{dir} * $self->{animPhases} * 64 + (int($::Game->{anim} / 16) % $self->{animPhases}) * 64;
+    $srcy = 0;
+  } elsif ($self->{state} eq 'shoot') {
+    $srcx = $self->{dir} * 128 + 64;
+    $srcx -= 64 if ($self->{delay} <= 1);
+    $srcy = 64;
+  } elsif ($self->{state} eq 'fly') {
+    $srcx = ($self->{dir} > 0 ? 0 : 64);
+    $srcy = 128;
+  }
+  $srcrect = new SDL::Rect( -width => $srcw, -height => $srch, -x => $srcx, -y => $srcy );
+  $self->TransferRect();
+  $surface->blit($srcrect, $::App, $self->{rect});
+}
+
+sub Kill {
+  my ($self) = @_;
+
+  return if $::Cheat;
+  return if $self->{invincible} > 0;
+  $self->{justkilled} = 1;
+  $::GameEvents{'kill'} = 1;
+}
+
+sub Earthquake() {
+  my ($self, $amplitude) = @_;
+
+  return if $self->{state} eq 'fly';
+  $self->{speedY} = -($amplitude->[0]);
+  $self->{dir} = $amplitude->[1] > $self->{x} ? 0 : 1;
+  $self->{state} = 'fly';
+  $self->{y} -= 3;
+}
+
+sub DeleteHarpoons {
+  my ($self) = @_;
+  my (@gameObjects, $harpoon);
+
+  @gameObjects = @::GameObjects;
+  foreach $harpoon (@gameObjects) {
+    $harpoon->Delete if ($harpoon->{guy} and $harpoon->{guy} eq $self);
+  }
+}
+
+sub GiveScore {
+  my ($self, $score) = @_;
+
+  my $player = $self->{player};
+  $player->{score} += $score;
+  if ($player->{score} >= $player->{scoreforbonuslife}) {
+    ++$player->{lives};
+    $player->{scoreforbonuslife} += 200000;
+    &::PlaySound('bonuslife');
+  }
+}
+
+
+##########################################################################
+package Harpoon;
+##########################################################################
+
+@Harpoon::ISA = qw(GameObject);
+use vars qw(%Harpoons $HarpoonId);
+
+sub Create {
+  return new Harpoon(@_);
+}
+
+sub new {
+  my ($class, $guy) = @_;
+  my ($self);
+
+  $self = new GameObject;
+  %{$self} = ( %{$self},
+    'x' => $guy->{x} + 22,
+    'y' => $::ScreenHeight - 32,
+    'w' => 18,
+    'h' => 32,
+    'speedY' => -3,
+    'speedX' => 0,
+    'guy' => $guy,
+    'surface' => $guy->{player}->{harpoonSurface},
+    'popEffect' => '',
+    'id' => ++$HarpoonId,
+  );
+  $Harpoons{$self->{id}} =  $self;
+  bless $self, $class;
+}
+
+sub Delete {
+  my $self = shift;
+
+  delete $Harpoons{$self->{id}};
+  --$self->{guy}->{harpoons};
+  $self->SUPER::Delete();
+}
+
+sub Advance {
+  my $self = shift;
+
+  if ($self->{y} < 0) {
+    $self->Delete();
+    return;
+  }
+  $self->{y} += $self->{speedY};
+  $self->{h} = $::ScreenHeight - $self->{y};
+}
+
+sub GetAnimPhase {
+  my $self = shift;
+
+  return (int($::Game->{anim} / 4) % 3) + 1;
+}
+
+sub Draw {
+  my $self = shift;
+  my ($x, $y, $h, $maxh, $dstrect, $srcrect);
+
+  $self->TransferRect();
+  $y = $self->{y};
+  $dstrect = new SDL::Rect( -w => $self->{w}, -x => $self->{x} + $::ScreenMargin );
+  $srcrect = new SDL::Rect( -w => $self->{w},
+    -x => (0, 64, 32, 96)[ $self->GetAnimPhase() ], -y => 0 );
+  $maxh = 160;
+
+  # The harpoon needs to be drawn from tile pieces.
+  # $y iterates from $self->{y} to $::ScreenHeight
+  # We draw at most $maxh height tiles at a time.
+
+  while ($y < $::ScreenHeight) {
+    $h = $::ScreenHeight - $y;
+    $h = $maxh if $h > $maxh;
+    $dstrect->y( $y + $::ScreenMargin );
+    $dstrect->height( $h );
+    $srcrect->height( $h );
+    $self->{surface}->blit( $srcrect, $::App, $dstrect );
+
+    # Prepare for next piece
+    $y += $h;
+    $srcrect->y( 32 );      # First piece starts at 0, rest start at 32
+    $maxh = 128;
+  }
+}
+
+
+##########################################################################
+package MachineGun;
+##########################################################################
+
+@MachineGun::ISA = qw(Harpoon);
+use vars qw(@SrcRects);
+
+@SrcRects = (
+  new SDL::Rect( -x=>0, -y=>160, -w=>32, -h=>32 ),
+  new SDL::Rect( -x=>32, -y=>160, -w=>32, -h=>32 ),
+  new SDL::Rect( -x=>64, -y=>160, -w=>32, -h=>32 ),
+);
+
+sub Create {
+  return ( new MachineGun(@_, 0), new MachineGun(@_, 1), new MachineGun(@_, 2) );
+}
+
+sub new {
+  my ($class, $guy, $index) = @_;
+  my ($self);
+
+  $self = new Harpoon($guy);
+  %{$self} = ( %{$self},
+    'x' => $guy->{x} + 16,
+    'y' => $guy->{y} - 16,
+    'w' => 32,
+    'h' => 32,
+    'index' => $index,
+    'speedY' => -9,
+    'speedX' => (-2, 0, 2)[$index],
+  );
+  bless $self, $class;
+}
+
+sub Delete {
+  my $self = shift;
+
+  --$self->{guy}->{harpoons} if $self->{index} == 1;
+  delete $Harpoon::Harpoons{$self->{id}};
+  $self->GameObject::Delete();
+}
+
+sub Advance {
+  my $self = shift;
+
+  if ($self->{y} < 0
+    or $self->{x} < 0
+    or $self->{x} > $::ScreenWidth - $self->{w}) {
+    $self->Delete();
+    return;
+  }
+  $self->{y} += $self->{speedY};
+  $self->{x} += $self->{speedX};
+}
+
+sub Draw {
+  my $self = shift;
+
+  $self->TransferRect();
+  $self->{surface}->blit($SrcRects[$self->{index}], $::App, $self->{rect});
+}
+
+##########################################################################
+package PowerWire;
+##########################################################################
+
+@PowerWire::ISA = qw(Harpoon);
+
+sub Create {
+  return new PowerWire(@_);
+}
+
+sub new {
+  my $class = shift;
+  my ($self);
+
+  $self = new Harpoon(@_);
+  %{$self} = ( %{$self},
+    'topdelay' => 200,
+  );
+  bless $self, $class;
+}
+
+sub Advance {
+  my $self = shift;
+
+  if ($self->{y} > 0) {
+    return $self->SUPER::Advance();
+  }
+  $self->{y} = 0;
+  --$self->{topdelay};
+  if ($self->{topdelay} <= 0) {
+    $self->Delete();
+  }
+}
+
+sub GetAnimPhase {
+  my $self = shift;
+
+  if ($self->{y} <= 0) {
+    return 0;
+  }
+  return $self->SUPER::GetAnimPhase();
+}
+
+
+##########################################################################
+package HalfCutter;
+##########################################################################
+
+@HalfCutter::ISA = qw(Harpoon);
+
+sub Create {
+  return new HalfCutter(@_);
+}
+
+sub new {
+  my $class = shift;
+  my $self = new Harpoon(@_);
+  $self->{popEffect} = 'HalfCutter';
+  $self->{originalSurface} = $self->{surface};
+  bless $self, $class;
+}
+
+sub Advance {
+  my $self = shift;
+
+  $self->{surface} = (($::Game->{anim} % 15) < 3) ? $::WhiteHarpoonSurface : $self->{originalSurface};
+  $self->SUPER::Advance();
+}
+
+
+##########################################################################
+package DeadGuy;
+##########################################################################
+
+@DeadGuy::ISA = qw(GameObject);
+
+sub new {
+  my ($class, $guy, $dir) = @_;
+  my ($self, $player);
+
+  $self = new GameObject;
+  $player = $guy->{player};
+
+  %{$self} = ( %{$self},
+    'x' => $guy->{x},
+    'y' => $guy->{y},
+    'w' => 64,
+    'h' => 64,
+    'speedY' => -7,
+    'surface' => $player->{guySurface},
+    'anim' => 0,
+    'bounce' => 0,
+    'bouncex' => 0,
+  );
+  $self->{'speedX'} = ($::Game->Rand(2) + 1.5) * (($self->{x} > $::ScreenWidth / 2) ? 1 : -1);
+  bless $self, $class;
+}
+
+sub Advance {
+  my $self = shift;
+
+  $self->{speedY} += 0.1;
+  $self->{x} += $self->{speedX};
+  $self->{y} += $self->{speedY};
+  
+  unless ($self->{bouncex}) {
+    if ($self->{x} < -16) {
+      $self->{x} = -16;
+      $self->{speedX} = abs( $self->{speedX} );
+      $self->{speedY} = -3 if $self->{speedY} > -3;
+      $self->{bouncex} = 1;
+    }
+    if ($self->{x} > $::ScreenWidth - $self->{w} +16) {
+      $self->{x} = $::ScreenWidth - $self->{w} + 16;
+      $self->{speedX} = -abs( $self->{speedX} );
+      $self->{speedY} = -3 if $self->{speedY} > -3;
+      $self->{bouncex} = 1;
+    }
+  }
+  if ($self->{y} > $::ScreenHeight - 64 and not $self->{bounce}) {
+    $self->{bounce} = 1;
+    $self->{speedY} = -3;
+  }
+
+  if ($self->{y} > $::PhysicalScreenHeight) {
+    $self->Delete;
+  }
+  $self->{anim} += $self->{speedX} > 0 ? -1 : +1;
+}
+
+sub Draw {
+  my $self = shift;
+  my ($srcrect);
+
+  $srcrect = new SDL::Rect(
+    -x => ($self->{speedX} > 0 ? 0 : 64),
+    -y => 128,
+    -width => 64, -height => 64 );
+  $self->TransferRect();
+  if ($::RotoZoomer) {
+    my $roto = new SDL::Surface( -name =>'',
+        -flags=>::SDL_SWSURFACE(), -width => 64, -height => 64, -depth => 32);
+    $self->{surface}->blit( $srcrect, $roto, new SDL::Rect );
+    $::RotoZoomer->rotoZoom( $roto, $self->{anim} * 5, 1, $::SmoothRotoZoom );
+    $self->{rect}->x( $self->{rect}->x - ($roto->width - 64) / 2 );
+    $self->{rect}->y( $self->{rect}->y - ($roto->height - 64) / 2 );
+    $roto->blit( 0, $::App, $self->{rect} );
+    return;
+  } else {
+    $self->{surface}->blit( $srcrect, $::App, $self->{rect} );
+  }
+}
+
+
+##########################################################################
+package Meltdown;
+##########################################################################
+
+@Meltdown::ISA = qw(GameObject);
+
+sub new {
+  my ($class) = @_;
+  my ($self, $surface);
+
+  $self = new GameObject;
+  $surface = new SDL::Surface( -name => "$::DataDir/meltdown.png" );
+  %{$self} = ( %{$self},
+    'x' => ($::ScreenWidth - $surface->width) / 2,
+    'y' => -$surface->height,
+    'w' => $surface->width,
+    'h' => $surface->height,
+    'speedY' => 0,
+    'surface' => $surface,
+    'bounce' => 0,
+  );
+  bless $self, $class;
+}
+
+sub Advance {
+  my $self = shift;
+  $self->{speedY} += 0.1;
+  $self->{y} += $self->{speedY};
+  if ($self->{bounce} == 0 and $self->{y} > $::ScreenHeight - $self->{h}) {
+    $self->{bounce} = 1;
+    $self->{speedY} = -5;
+    $self->{y} = $::ScreenHeight - $self->{h};
+  }
+  if ($self->{bounce} and $self->{y} > $::PhysicalScreenHeight) {
+    $self->Delete;
+  }
+}
+
+sub Draw {
+  my $self = shift;
+  
+  $self->TransferRect();
+  $self->{surface}->blit( 0, $::App, $self->{rect} );
+}
+
+
+##########################################################################
+package MenuItem;
+##########################################################################
+
+@MenuItem::ISA = qw(GameObject);
+use vars qw($Gravity);
+$Gravity = 0.2;
+
+sub new {
+  my ($class, $x, $y, $text) = @_;
+  my ($self);
+
+  $self = new GameObject;
+  %{$self} = ( %{$self},
+    'targetX' => $x,
+    'targetY' => $y,
+    'h' => 42,
+    'selected' => 0,
+    'filled' => 0,
+    'fillcolor' => new SDL::Color(-b=>128),
+    'parameter' => 0,
+    'tooltip' => [ @_[4 .. $#_] ],
+  );
+  bless $self, $class;
+  $self->SetText($text);
+  $self->SetInitialSpeed();
+  return $self;
+}
+
+sub Center {
+  my $self = shift;
+  
+  $self->{targetX} = ( $::ScreenWidth - $self->{w} ) / 2;
+}
+
+sub Show {
+  my $self = shift;
+  return if $self->CanSelect();
+  $self->SetInitialSpeed();
+}
+
+sub Hide {
+  my $self = shift;
+  $self->SUPER::Clear();
+  $self->{state} = 'leaving';
+  $self->{speedX} = rand(10) - 5;
+}
+
+sub HideAndDelete {
+  my $self = shift;
+  $self->Hide();
+  $self->{deleteAfterHiding} = 1;
+}
+
+sub Delete {
+  my $self = shift;
+  $self->{selected} = $self->{filled} = 0;
+  $self->SUPER::Delete();
+}
+
+sub ApproachingSpeed {
+  my ($position, $speed, $target) = @_;
+    
+  if ($position + $speed * abs($speed / $Gravity) / 2 > $target) {
+    return $speed - $Gravity;
+  } else {
+    return $speed + $Gravity;
+  }
+}
+
+sub Advance {
+  my $self = shift;
+  
+  if ('entering' eq $self->{state}) {
+    $self->{x} += $self->{speedX};
+    $self->{y} += $self->{speedY};
+    $self->{speedX} = &ApproachingSpeed($self->{x}, $self->{speedX}, $self->{targetX});
+    $self->{speedY} = &ApproachingSpeed($self->{y}, $self->{speedY}, $self->{targetY});
+    if ( abs($self->{x} - $self->{targetX}) + abs($self->{y} - $self->{targetY}) < 2 ) {
+      $self->{x} = $self->{targetX};
+      $self->{y} = $self->{targetY};
+      $self->{state} = 'shown';
+    }
+  } elsif ('leaving' eq $self->{state}) {
+    $self->{x} += $self->{speedX};
+    $self->{y} += $self->{speedY};
+    $self->{speedY} += $Gravity;
+    if ($self->{y} > $::PhysicalScreenWidth) {
+      $self->{state} = 'hidden';
+      $self->Delete() if $self->{deleteAfterHiding}
+    }
+  }
+}
+
+sub Draw {
+  my $self = shift;
+
+  return if $self->{state} eq 'hidden';
+  $self->TransferRect();
+  if ($self->{selected} or $self->{filled}) {
+    $::App->fill($self->{rect}, $self->{fillcolor});
+  }
+  $::App->print($self->{x} + 5 +$::ScreenMargin, $self->{y} + $::ScreenMargin, $self->{text});
+}
+
+sub SetInitialSpeed {
+  my $self = shift;
+  
+  $self->{x} = $self->{targetX} + rand(500) - 250;
+  $self->{y} = $::PhysicalScreenHeight;
+  $self->{speedY} = -sqrt( 2 * $Gravity * ($self->{y} - $self->{targetY}) );
+  $self->{speedX} = 0;
+  $self->{state} = 'entering';
+}
+
+sub InternalSetText {
+  my ($self, $text) = @_;
+  
+  $self->SUPER::Clear();
+  $self->{text} = $text;
+  $self->{w} = &::TextWidth($text) + 10;
+}
+
+sub SetText {
+  my ($self, $text) = @_;
+
+  $self->{parameter} = '';
+  $self->{basetext} = $text;
+  $self->InternalSetText($text);
+}
+
+sub SetParameter {
+  my ($self, $parameter) = @_;
+  
+  $self->{parameter} = $parameter;
+  $self->InternalSetText($self->{basetext} . ' ' . $parameter);
+}
+
+sub Select {
+  my ($self) = @_;
+
+  foreach my $item (@::GameObjects) {
+    $item->{selected} = 0 if ref $item eq 'MenuItem';
+  }
+  $self->{selected} = 1;
+  $::Game->ShowTooltip( @{$self->{tooltip}} );
+}
+
+sub CanSelect {
+  my ($self) = @_;
+  
+  return $self->{state} =~ /(?:entering|shown)/;
+}
+
+
+
+##########################################################################
+package GameTimer;
+##########################################################################
+
+use vars qw($FirstTick $LastTick $TotalAdvances $LastFpsTick $LastFps $Fps);
+
+sub ResetTimer {
+  $FirstTick = $::App->ticks;
+  $LastTick = $LastFpsTick = $FirstTick;
+  $TotalAdvances = 0;
+  $Fps = $LastFps = 0;
+}
+
+sub GetAdvances {
+  my ($ticks, $advance);
+
+  $ticks = $::App->ticks;
+  $advance = int(($ticks - $FirstTick) / 10) - $TotalAdvances;
+  $TotalAdvances += $advance;
+  
+  # Calculate frames per second;
+  ++$Fps if $advance > 0;
+  if ($ticks - $LastFpsTick > 1000) {
+    $LastFps = $Fps;
+    $LastFpsTick = $ticks;
+    $Fps = 0;
+  }
+  
+  return $advance;
+}
+
+sub GetFramesPerSecond {
+  return $LastFps;
+}
+
+
+##########################################################################
+package Joystick;
+##########################################################################
+
+use vars qw(@Joysticks @JoystickButtons);
+
+sub InitJoystick {
+  my ($numJoysticks, $joystick, $numButtons, $i);
+
+  $numJoysticks = &SDL::NumJoysticks();
+  for ($i = 0; $i < $numJoysticks; ++$i) {
+    print STDERR "Found joystick " , $i+1 , ": " , &SDL::JoystickName($i), "\n";
+    $joystick = &SDL::JoystickOpen($i);
+    next unless $joystick;
+    $numButtons = &SDL::JoystickNumButtons($joystick);
+    next unless $numButtons;
+    push @Joysticks, $joystick;
+    push @JoystickButtons, $numButtons;
+    print STDERR "Joystick opened, $numButtons buttons.\n";
+  }
+}
+
+sub ReadJoystick {
+  my ($readBothAxes) = @_;
+  my ($i, $button, $buttonPressed);
+
+  $i = 0;
+  foreach my $joystick (@Joysticks) {
+    ++$i;
+    my $axis = &SDL::JoystickGetAxis($joystick, 0);
+    if ($axis <= -10000) {
+      $::Events{"L$i"} = $::MenuEvents{LEFT} = 1 unless $::Keys{"L$i"};
+      $::Keys{"L$i"} = 1;
+      $::Keys{"R$i"} = 0;
+    } elsif ($axis >= 10000) {
+      $::Events{"R$i"} = $::MenuEvents{RIGHT} = 1 unless $::Keys{"R$i"};
+      $::Keys{"R$i"} = 1;
+      $::Keys{"L$i"} = 0;
+    } else {
+      $::Keys{"L$i"} = 0;
+      $::Keys{"R$i"} = 0;
+    }
+    if ($readBothAxes) {
+      $axis = &SDL::JoystickGetAxis($joystick, 1);
+      if ($axis <= -10000) {
+        $::Events{"U$i"} = $::MenuEvents{UP} = 1 unless $::Keys{"U$i"};
+        $::Keys{"U$i"} = 1;
+        $::Keys{"D$i"} = 0;
+      } elsif ($axis >= 10000) {
+        $::Events{"D$i"} = $::MenuEvents{DOWN} = 1 unless $::Keys{"D$i"};
+        $::Keys{"D$i"} = 1;
+        $::Keys{"U$i"} = 0;
+      } else {
+        $::Keys{"D$i"} = 0;
+        $::Keys{"U$i"} = 0;
+      }
+    }
+    $buttonPressed = 0;
+    for ($button = 0; $button < $JoystickButtons[$i-1]; ++$button) {
+      if (&SDL::JoystickGetButton($joystick, $button)) {
+        $buttonPressed = 1; last;
+      }
+    }
+    if ($buttonPressed and not $::Keys{"B$i"}) {
+        $::Events{"B$i"} = $::MenuEvents{BUTTON} = 1;
+    }
+    $::Keys{"B$i"} = $buttonPressed;
+  }
+}
+
+
+##########################################################################
+# PALETTE MANIPULATION
+##########################################################################
+
+package main;
+
+sub RgbToHsi {
+  my ($r, $g, $b) = @_;
+  my ($min, $max, $delta, $h, $s, $i);
+
+  if ($r > $g) {
+    $max = $r > $b ? $r : $b;
+    $min = $g < $b ? $g : $b;
+  } else {
+    $max = $g > $b ? $g : $b;
+    $min = $r < $b ? $r : $b;
+  }
+  $i = ($min + $max) / 2;
+  if ($min == $max) {
+    return (0, 0, $i);
+  }
+
+  $delta = ($max - $min);
+  if ($i < 128) {
+    $s = 255 * $delta / ($min + $max);
+  } else {
+    $s = 255 * $delta / (511 - $min - $max);
+  }
+
+  if ($r == $max) {
+    $h = ($g - $b) / $delta;
+  } elsif ($g == $max) {
+    $h = 2 + ($b - $r) / $delta;
+  } else {
+    $h = 4 + ($r - $g) / $delta;
+  }
+  $h = $h * 42.5;
+  $h += 255 if $h < 0;
+  $h -= 255 if $h > 255;
+
+  return ($h, $s, $i);
+}
+
+sub HsiToRgb {
+  my ($h, $s, $i) = @_;
+  my ($m1, $m2);
+
+  if ($s < 1) {
+    $i = int($i + 0.5);
+    return ($i, $i, $i);
+  }
+
+  if ($i < 128) {
+    $m2 = ($i * (255 + $s)) / 65025.0;
+  } else {
+    $m2 = ($i + $s - ($i * $s) / 255.0) / 255.0;
+  }
+  $m1 = ($i / 127.5) - $m2;
+
+  return (
+    &GetHsiValue( $m1, $m2, $h + 85),
+    &GetHsiValue( $m1, $m2, $h),
+    &GetHsiValue( $m1, $m2, $h - 85)
+  );
+}
+
+sub GetHsiValue {
+  my ($n1, $n2, $hue) = @_;
+  my ($value);
+
+  $hue -= 255 if ($hue > 255);
+  $hue += 255 if ($hue < 0);
+  if ($hue < 42.5) {
+    $value = $n1 + ($n2 - $n1) * ($hue / 42.5);
+  } elsif ($hue < 127.5) {
+    $value = $n2;
+  } elsif ($hue < 170) {
+    $value = $n1 + ($n2 - $n1) * ((170 - $hue) / 42.5);
+  } else {
+    $value = $n1;
+  }
+  return int($value * 255 + 0.5);
+}
+
+##########################################################################
+# GRAPHICS-RELATED SUBS
+##########################################################################
+
+package SDL::Surface;
+
+sub display_format_alpha {
+  my $self = shift;
+  my $tmp = SDL::DisplayFormatAlpha($$self);
+  SDL::FreeSurface ($$self);
+  $$self = $tmp;
+  $self;
+}
+
+package main;
+
+sub LoadSurfaces {
+  my ($i, $transparentColor);
+  
+  my %balls = qw ( 
+  ball0 Balls-Red128.png ball1 Balls-Red96.png ball2 Balls-Red64.png ball3 Balls-Red32.png ball4 Balls-Red16.png
+  xmas Balls-XMAS128.png
+  ball4 Balls-Red16.png ball3 Balls-Red32.png
+  bouncy2 Balls-Bouncy64.png bouncy3 Balls-Bouncy32.png bouncy4 Balls-Bouncy16.png
+  hexa0 Hexa-64.png hexa1 Hexa-32.png hexa2 Hexa-16.png
+  blue1 Balls-Water96.png blue2 Balls-Water64.png blue3 Balls-Water32.png blue4 Balls-Water16.png
+  frag0 Balls-Fragile128.png frag1 Balls-Fragile96.png frag2 Balls-Fragile64.png frag3 Balls-Fragile32.png frag4 Balls-Fragile16.png
+  green1 Balls-SuperClock96.png green2 Balls-SuperClock64.png gold1 Balls-SuperStar96.png gold2 Balls-SuperStar64.png
+  death2 Balls-Death64.png
+  white2 Balls-Seeker64.png white3 Balls-Seeker32.png
+  quake2 Balls-EarthQ64.png quake3 Balls-EarthQ32.png quake4 Balls-EarthQ16.png
+  upside0 Balls-Upside128.png upside1 Balls-Upside96.png upside2 Balls-Upside64.png upside3 Balls-Upside32.png upside4 Balls-Upside16.png
+  );
+  
+  foreach (sort keys %balls) {
+    $BallSurfaces{$_} = new SDL::Surface( -name => "$DataDir/$balls{$_}" );
+    $transparentColor = $BallSurfaces{$_}->pixel(0,0);
+    $BallSurfaces{$_}->set_color_key(SDL_SRCCOLORKEY, $transparentColor );
+    # print join(' ', $_, "\t", $transparentColor->r, $transparentColor->g, $transparentColor->b), "\n";
+    $BallSurfaces{$_}->display_format();
+    $BallSurfaces{"dark$_"} = new SDL::Surface( -name => "$DataDir/$balls{$_}" );
+    $BallSurfaces{"dark$_"}->set_color_key(SDL_SRCCOLORKEY, $BallSurfaces{"dark$_"}->pixel(0,0) );
+    $BallSurfaces{"dark$_"}->set_alpha(SDL_SRCALPHA, 128);
+    $BallSurfaces{"dark$_"}->display_format();
+  }
+
+  $BorderSurface = new SDL::Surface( -name => "$DataDir/border.png" );
+  $RedBorderSurface = new SDL::Surface( -name => "$DataDir/border.png" );
+  $WhiteBorderSurface = new SDL::Surface( -name => "$DataDir/border.png" );
+  $BonusSurface = new SDL::Surface( -name => "$DataDir/bonus.png" );
+  $LevelIndicatorSurface = new SDL::Surface( -name => "$DataDir/level.png" );
+  $LevelIndicatorSurface2 = new SDL::Surface( -name => "$DataDir/level_empty.png" );
+
+  &AlterPalette( $RedBorderSurface, sub { 1; },
+    sub { shift @_; my ($h, $s, $i) = &RgbToHsi(@_); return &HsiToRgb( $h - 30, $s, $i * 0.75 + 63); } );
+  &AlterPalette( $WhiteBorderSurface, sub { 1; },
+    sub { shift @_; my ($h, $s, $i) = &RgbToHsi(@_); return &HsiToRgb( 0, 0, $i*0.25 + 191 ); } );
+  
+  &MakeGuySurfaces();
+}
+
+sub MakeGuySurface {
+  my ($player) = @_;
+  my ($guySurfaceFile, $guySurface, $whiteGuySurface, $harpoonSurface);
+  
+  $guySurfaceFile = $DataDir . '/' . $GuyImageFiles[ $player->{imagefileindex} % scalar(@GuyImageFiles) ];
+  $guySurface = new SDL::Surface( -name => ($guySurfaceFile) );
+  $whiteGuySurface = new SDL::Surface( -name => ($guySurfaceFile) );
+  $harpoonSurface = new SDL::Surface( -name => "$DataDir/harpoon.png" );
+  $player->{hue} = $GuyColors[$player->{colorindex}]->[0];
+  $player->{saturation} = $GuyColors[$player->{colorindex}]->[1];
+  
+  &AlterPalette($whiteGuySurface, sub {1;}, sub { return (255, 255, 255); } );
+  &AlterPalette( $guySurface, sub { $_[3] > $_[2] and $_[3] > $_[1]; },
+    sub {
+      shift @_;
+      my ($h, $s, $i) = &RgbToHsi(@_);
+      return &HsiToRgb($player->{hue}, $player->{saturation}, $i); }
+  );
+  &AlterPalette( $harpoonSurface, sub { 1; },
+    sub {
+      shift @_;
+      my ($h, $s, $i) = &RgbToHsi(@_);
+      return &HsiToRgb($player->{hue}, $player->{saturation} * $s / 256, $i); }
+  );
+  $player->{guySurface} = $guySurface;
+  $player->{whiteGuySurface} = $whiteGuySurface;
+  $player->{harpoonSurface} = $harpoonSurface;
+}
+
+sub MakeGuySurfaces {
+  foreach my $player (@Players) {
+    &MakeGuySurface($player);
+  }
+  
+  $WhiteHarpoonSurface = new SDL::Surface( -name => "$DataDir/harpoon.png" );
+  &AlterPalette($WhiteHarpoonSurface, sub {1;}, sub { return (255, 255, 255); } );
+}
+
+sub AlterPalette($$$) {
+  my ($surface, $filterSub, $alterSub) = @_;
+  my ($r, $g, $b);
+  my ($palette, $numColors, $n, $color);
+
+  $palette = $surface->palette();
+  $numColors = SDL::PaletteNColors($palette);
+  for ($n = 1; $n < $numColors; ++$n) {
+    $color = SDL::PaletteColors($palette, $n);
+    ($r, $g, $b) = ( SDL::ColorR($color), SDL::ColorG($color), SDL::ColorB($color) );
+
+    next unless $filterSub->($n, $r, $g, $b);
+    ($r, $g, $b) = $alterSub->($n, $r, $g, $b);
+    $r = $g = $b = 4 if ($r == 0 and $g == 0 and $b == 0);
+
+    SDL::PaletteColors($palette, $n, $r, $g, $b);
+  }
+  $surface->display_format();
+}
+
+sub RenderBorder {
+  my ($borderSurface, $targetSurface) = @_;
+  my ($dstrect, $srcrect1, $srcrect2, $xpos, $ypos, $width, $height);
+  
+  $width = $ScreenWidth + 2 * $ScreenMargin;
+  $height = $ScreenHeight + 2 * $ScreenMargin;
+
+  # Draw the corners
+  $dstrect = new SDL::Rect( -width => 16, -height =>16);
+  $srcrect1 = new SDL::Rect( -width => 16, -height =>16);
+  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  $dstrect->x($width - 16); $srcrect1->x(144);
+  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  $dstrect->y($height - 16); $srcrect1->y(144);
+  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  $dstrect->x(0); $srcrect1->x(0);
+  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  
+  if ($::RotoZoomer) {
+    # Top border
+    my $zoom = new SDL::Surface( -name =>'',
+        -flags=>::SDL_SWSURFACE(), -width => 128, -height => 16, -depth => 32);
+    $srcrect1->x(16); $srcrect1->y(0); $srcrect1->width(128); $srcrect1->height(16);
+    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
+    $dstrect->x(16); $dstrect->y(0);
+    $zoom->blit( 0, $targetSurface, $dstrect );
+    
+    # Left border
+    $zoom = new SDL::Surface( -name =>'',
+        -flags=>::SDL_SWSURFACE(), -width => 16, -height => 128, -depth => 32);
+    $srcrect1->x(0); $srcrect1->y(16); $srcrect1->height(128); $srcrect1->width(16);
+    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
+    $dstrect->x(0); $dstrect->y(16);
+    $zoom->blit( 0, $targetSurface, $dstrect );
+  }
+
+  # Draw top and bottom border
+
+  $srcrect1->width(128); $srcrect1->x(16); $srcrect1->y(0);
+  $srcrect2 = new SDL::Rect( -width => 128, -height => 16, -x => 16, -y => 144 );
+  for ($xpos = 16; $xpos < $width-16; ) {
+    $dstrect->x($xpos);
+    $dstrect->y(0);
+    $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+    $dstrect->y($height - 16);
+    $borderSurface->blit($srcrect2, $targetSurface, $dstrect);
+    $xpos += $srcrect1->width();
+    $srcrect1->width(16); $srcrect1->x(128);
+    $srcrect2->width(16); $srcrect2->x(128);
+  }
+
+  # Draw left and right border
+
+  $srcrect1->height(128); $srcrect1->y(16); $srcrect1->x(0);
+  $srcrect2->height(128); $srcrect2->y(16); $srcrect2->x(144);
+  for ($ypos = 16; $ypos < $height-16; ) {
+    $dstrect->x(0);
+    $dstrect->y($ypos);
+    $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+    $dstrect->x($width - 16);
+    $borderSurface->blit($srcrect2, $targetSurface, $dstrect);
+    $ypos += $srcrect1->height();
+    $srcrect1->height(16); $srcrect1->y(128);
+    $srcrect2->height(16); $srcrect2->y(128);
+  }
+
+  if ($::RotoZoomer) {
+  	# Top border
+    my $zoom = new SDL::Surface( -name =>'',
+        -flags=>::SDL_SWSURFACE(), -width => 128, -height => 16, -depth => 32);
+    $srcrect1->x(16); $srcrect1->y(0); $srcrect1->width(128); $srcrect1->height(16);
+    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
+    $dstrect->x(16); $dstrect->y(0);
+    $zoom->blit( 0, $targetSurface, $dstrect );
+    
+    # Left border
+    $zoom = new SDL::Surface( -name =>'',
+        -flags=>::SDL_SWSURFACE(), -width => 16, -height => 128, -depth => 32);
+    $srcrect1->x(0); $srcrect1->y(16); $srcrect1->height(128); $srcrect1->width(16);
+    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
+    $dstrect->x(0); $dstrect->y(16);
+    $zoom->blit( 0, $targetSurface, $dstrect );
+  }
+}
+
+sub LoadBackground {
+  my $filename = shift;
+  my ($backgroundImage, $srcrect, $dstrect);
+  
+  $Background->fill( new SDL::Rect(-width=>$PhysicalScreenWidth, -height=>$PhysicalScreenHeight), new SDL::Color() );
+  $backgroundImage = new SDL::Surface(-name => "$DataDir/$filename");
+  $dstrect = new SDL::Rect(-x => $ScreenMargin, -y => $ScreenMargin);
+  $srcrect = new SDL::Rect(-width => $ScreenWidth, -height => $ScreenHeight);
+  if ($ScreenWidth != $backgroundImage->width() or $ScreenHeight != $backgroundImage->height()) {
+    if ($::RotoZoomer) {
+      my $zoomX = $ScreenWidth / $backgroundImage->width(); # $zoomX = 1.0 if $zoomX < 1.0;
+      my $zoomY = $ScreenHeight / $backgroundImage->height(); # $zoomY = 1.0 if $zoomY < 1.0;
+      $backgroundImage = $::RotoZoomer->zoom($backgroundImage, $zoomX, $zoomY, $::SmoothRotoZoom);
+    }
+  }
+  $backgroundImage->blit($srcrect, $Background, $dstrect);
+  
+  &RenderBorder($BorderSurface, $Background);
+}
+
+sub TextWidth {
+  if (defined(&SDL::App::SDL_TEXTWIDTH)) {
+    SDL::App::SDL_TEXTWIDTH(@_);   # perl-sdl-1.x
+  } else {
+    SDL::SFont::SDL_TEXTWIDTH(@_); # perl-sdl-2.x
+  }
+}
+
+sub FindVideoMode {
+  if ($FullScreen < 2) {
+    return (800, 600);
+  }
+  
+  # Find a suitable widescreen mode
+  # One native resolution:   1680 x 1050 => 1.6  : 1
+  # Which could translate to: 840 x 525  => 1.6  : 1
+  # Some adapters have:       848 x 480  => 1.76 : 1
+  #                           720 x 480  => 1.5  : 1
+  #                           800 x 512  => 1.56 : 1
+  # Conclusion: Any resolution where w in [800,900], h > 480 and r in [1.5, 1.8] is good
+  
+  my ($modes, $mode, @goodModes, $w, $h, $ratio);
+  $modes = SDL::ListModes( 0, SDL_FULLSCREEN|SDL_HWSURFACE );
+  foreach $mode (@{$modes}) {
+    $w = SDL::RectW($mode);
+    $h = SDL::RectH($mode);
+    $ratio = $w / $h;
+    # print sprintf( "%4d x %4d => %0.3f\n", $w, $h, $ratio );
+    next if $w < 800 or $w > 900;
+    next if $h < 480;
+    next if $ratio < 1.5 or $ratio > 1.8; 
+    push @goodModes, ( { -w => $w, -h => $h, -score => abs($ratio - 1.6) * 1000 + abs($w - 800) } );
+  }
+  @goodModes = sort { $a->{-score} <=> $b->{-score} } @goodModes;
+  return (800, 600) unless @goodModes;
+  foreach $mode (@goodModes) {
+    print sprintf( '%d x %d => %0.3f (score %d)', $mode->{-w}, $mode->{-h}, $mode->{-w} / $mode->{-h}, $mode->{-score} ), "\n";
+  }
+  return ($goodModes[0]->{-w}, $goodModes[0]->{-h});
+}
+
+
+##########################################################################
+# SOUNDS
+##########################################################################
+
+sub LoadMusic {
+  my ($filename) = @_;
+  my ($result);
+  
+  return undef unless -f $filename;
+  $result = new SDL::Music($filename);
+  return undef unless $result;
+  return $result if $result->isa("SDL::Music"); # SDL_perl 2.? workaround
+  return undef unless ref $result;
+  return undef unless $result->{-data};
+  return $result;
+}
+
+sub LoadSounds {
+  $Mixer = eval { SDL::Mixer->new(-frequency => 22050, -channels => 2, -size => 1024); };
+  if ($@) {
+    warn $@;
+    return 0;
+  }
+
+  my ($soundName, $fileName);
+  while (($soundName, $fileName) = each %Sounds) {
+    $Sounds{$soundName} = new SDL::Sound("$DataDir/$fileName");
+  }
+
+  $::music = LoadMusic("$DataDir/UPiPang.mp3");
+  $::music = LoadMusic("$DataDir/UPiPang.mid") unless $::music;
+  &SetMusicEnabled($MusicEnabled);
+}
+
+sub PlaySound {
+  return unless $SoundEnabled;
+  my $sound = shift;
+  $Mixer and $Sounds{$sound} and $Mixer->play_channel(-1, $Sounds{$sound}, 0);
+}
+
+sub SetMusicEnabled {
+  return $MusicEnabled = 0 unless $::music;
+  my $musicEnabled = shift;
+
+  $MusicEnabled = $musicEnabled ? 1 : 0;
+  if ( (not $MusicEnabled) and $Mixer->playing_music() ) {
+    $Mixer->halt_music();
+  }
+  if ($MusicEnabled and not $Mixer->playing_music()) {
+    $Mixer->play_music($::music, -1);
+  }
+}
+
+
+
+package PlaybackGame;
+package RecordGame;
+package PanicGame;
+package ChallengeGame;
+package TutorialGame;
+package DemoGame;
+package Menu;
+
+##########################################################################
+package GameBase;
+##########################################################################
+
+sub new {
+  my ($class) = @_;
+  my $self = {
+    'abortgame' => 0,
+    'anim' => 0,
+    'nocollision' => 0,
+    'backgrounds' => [ 'desert2.png', ],
+  };
+  $::GameSpeed = 1.0;
+  $::GamePause = 0;
+  bless $self, $class;
+}
+
+sub Exit {
+  &::ShowWebPage("http://apocalypse.rulez.org/pangzero/Thanks_For_Playing_Pang_Zero_$::Version" ) if $::ShowWebsite ne $::Version;
+  exit;
+}
+
+sub Rand {
+  shift;
+  return rand($_[0]);
+}
+
+sub Delay {
+  my ($self, $ticks) = @_;
+  
+  while ($ticks > 0) {
+    my $advance = $self->CalculateAdvances();
+    %::Events = ();
+    &::HandleEvents();
+    return if $self->{abortgame};
+    $ticks -= $advance;
+    $self->DrawGame();
+  }
+}
+
+sub SetGameSpeed {
+}
+
+sub SetBackground {
+  my ($self, $backgroundIndex) = @_;
+  
+  return if $backgroundIndex >= scalar( @{$self->{backgrounds}} );
+  &::LoadBackground($self->{backgrounds}->[$backgroundIndex]);
+  $::Background->blit(0, $::App, 0);
+}
+
+sub ShowTooltip {
+}
+
+sub ResetGame {
+  my $self = shift;
+
+  @::GameObjects = ();
+  %Guy::Guys = ();
+  %Harpoon::Harpoons = ();
+  $::GamePause = 0;
+  %::GameEvents = ();
+  $self->SetBackground(0);
+}
+
+sub CalculateAdvances {
+  my $advance = &GameTimer::GetAdvances();
+  while ($advance <= 0) {
+    $::App->delay(3); # Wait 3ms = 0.3 game ticks
+    $advance = &GameTimer::GetAdvances();
+  }
+  if ($advance > 5) {
+    # print STDERR "advance = $advance!\n";
+    $advance = 5;
+  }
+  return $advance;
+}
+
+sub AdvanceGameObjects {
+  my ($self) = @_;
+
+  ++$self->{anim};
+  foreach my $gameObject (@::GameObjects) {
+    $gameObject->Advance();
+  }
+}
+
+sub OnBallPopped {
+}
+
+sub DrawGame {
+  my ($self) = @_;
+
+  my ($gameObject);
+  foreach $gameObject (@::GameObjects) {
+    $gameObject->Clear();
+  }
+  $self->DrawScoreBoard();
+  foreach $gameObject (@::GameObjects) {
+    $gameObject->Draw();
+  }
+  $::App->sync();
+}
+
+sub DrawScoreBoard() {
+}
+
+
+##########################################################################
+package PlayableGameBase;
+##########################################################################
+
+@PlayableGameBase::ISA = qw( GameBase );
+
+sub new {
+  my ($class) = @_;
+  my $self = new GameBase;
+  %{$self} = (%{$self},
+    'playersalive'   => 0,
+    'level'          => 0,
+    'backgrounds'    => [ qw( desert2.png l1.jpg  l2.jpg  l3.jpg  l4.jpg  l5.jpg  l6.jpg  l7.jpg  l8.jpg  l9.jpg )],
+  );
+  bless $self, $class;
+}
+
+sub ResetGame {
+  my $self = shift;
+
+  $self->SUPER::ResetGame();
+  $self->{playersalive} = 0;
+  $::GamePause = 0;
+
+  foreach my $player (@::Players) {
+    last if $player->{number} >= $::NumGuys;
+    $self->SpawnPlayer($player);
+  }
+  $self->SetGameLevel(0);
+  $self->LayoutScoreBoard();
+  push @::GameObjects, (new FpsIndicator);
+}
+
+sub SetGameSpeed {
+  my $self = shift;
+  
+  $::GameSpeed = 0.8 * $::DifficultyLevel->{speed};
+}
+
+sub SetGameLevel {
+  my ($self, $level) = @_;
+
+  $self->{level} = $level;
+  if (($level % 10) == 9) {
+    $self->SetBackground( int($level / 10) + 1 );
+  }
+  $self->SetGameSpeed();
+}
+
+sub SpawnPlayer {
+  my ($self, $player) = @_;
+
+  $player->{score} = 0;
+  $player->{scoreforbonuslife} = 200000;
+  $player->{lives} = 2;
+  $player->{startX} = ($::ScreenWidth - $::NumGuys * 60) / 2 + 60 * ($player->{number}+0.5) - 32;
+  $player->{respawn} = -1;
+  my $guy = new Guy($player);
+  push @::GameObjects, ($guy);
+  ++$self->{playersalive};
+  return $guy;
+}
+
+sub AdvanceGameObjects {
+  my ($self) = @_;
+
+  $self->SUPER::AdvanceGameObjects();
+  $self->RespawnPlayers();
+  --$::GamePause if $::GamePause > 0;
+}
+
+sub RespawnPlayers {
+  my $self = shift;
+
+  foreach my $player (@::Players) {
+    last if $player->{number} >= $::NumGuys;
+    if ($player->{respawn} > 0) {
+      --$player->{respawn};
+      $player->{score} = int($player->{respawn} / 100) if $self->{playersalive};
+      if ($player->{respawn} <= 0) {
+        my $guy = $self->SpawnPlayer($player);
+        $guy->{invincible} = 500;
+      }
+    }
+  }
+}
+
+sub PlayerNextLife {
+  my ($self, $guy) = @_;
+  
+  $guy->DeleteHarpoons;
+  if ($guy->{player}->{lives}--) {
+    $guy->{x} = $guy->{player}->{startX};
+    $guy->{y} = $::ScreenHeight - $guy->{h};
+    $guy->{state} = 'idle';
+    $guy->{speedY} = $guy->{speedX} = 0;
+    $guy->{invincible} = 500; # 0.5s
+    $guy->{killed} = 0;
+    $guy->{justkilled} = 0;
+    $self->{playerspawned} = 1;
+  } else {
+    # One player less
+    &::AddHighScore($guy->{player}, $guy->{player}->{score}, $self->{level} + 1);
+    $guy->Delete();
+    --$self->{playersalive};
+    $guy->{player}->{respawn} = 6000; # 60s
+  }
+}
+
+sub PlayerDeathSequence {
+  my $self = shift;
+  my (@killedGuys, @deadGuys, $guy, $i);
+
+  $self->DrawGame();
+  ::PlaySound('death');
+  &::RenderBorder($::WhiteBorderSurface, $::App);
+  $::App->sync();
+  $self->Delay(10);
+  &::RenderBorder($::RedBorderSurface, $::App);
+  &::RenderBorder($::RedBorderSurface, $::Background);
+  $::App->sync();
+  $self->Delay(90);
+
+  @killedGuys = grep { $_->{justkilled}; } @::GameObjects;
+  foreach $guy (@killedGuys) {
+    $guy->Clear();
+    $guy->{killed} = 1;
+    push @deadGuys, (new DeadGuy($guy));
+  }
+  push @::GameObjects, (@deadGuys);
+
+  for ($i = 0; $i < 300; ++$i) {
+    &::HandleEvents();
+    return if $self->{abortgame};
+    my $advance = $self->CalculateAdvances();
+    while ($advance--) {
+      foreach my $gameObject (@deadGuys) {
+        $gameObject->Advance();
+      }
+    }
+    $self->DrawGame();
+    last if $deadGuys[0]->{deleted};
+  }
+
+  foreach $guy (@killedGuys) {
+    $self->PlayerNextLife($guy);
+  }
+  
+  &::RenderBorder($::BorderSurface, $::App);
+  &::RenderBorder($::BorderSurface, $::Background);
+}
+
+sub SuperKill {
+  my ($self, $guy) = @_;
+
+  my @gameObjects = @::GameObjects;
+  my $sound = 0;
+  foreach my $ball (@gameObjects) {
+    next unless $ball->isa("Ball");
+    $ball->Pop($guy, 'superkill');
+    $sound = 1;
+  }
+  ::PlaySound('pop') if $sound;
+}
+
+sub PopEveryBall {
+  my $self = shift;
+  my (@gameObjects, @guys);
+  
+  @gameObjects = @::GameObjects;
+  foreach (@gameObjects) {
+    if ($_->isa('Ball')) {
+      $_->Pop(undef, 'meltdown');
+    } elsif ('Guy' eq ref $_) {
+      push @guys, $_;
+    }
+  }
+  return @guys;
+}
+
+sub DeathballMeltdown {
+  my ($self) = @_;
+  my ($i, $meltdown, $allKilled, @guys, @killedGuys, @deadGuys);
+  
+  $self->{nocollision} = 1;
+  $meltdown = new Meltdown;
+  push @::GameObjects, $meltdown;
+  
+  for ($i = 0; $i < 300; ++$i) {
+    %::Events = ();
+    &::HandleEvents();
+    return if $self->{abortgame};
+    my $advance = $self->CalculateAdvances();
+    while ($advance--) {
+# TODO REINSTATE THIS IN 1.1!!!     $self->PreAdvanceAction(); # Hook for something special
+      $self->SUPER::AdvanceGameObjects();
+      $::GamePause = 0;
+      if ($meltdown->{bounce} and not $allKilled) {
+        $allKilled = 1;
+        @guys = $self->PopEveryBall();
+        foreach (@guys) {
+          $_->{killed} = 1;
+          push @deadGuys, (new DeadGuy($_));
+          push @killedGuys, $_;
+        }
+        push @::GameObjects, (@deadGuys);
+      }
+    }
+    $self->DrawGame();
+  }
+  
+  foreach (@killedGuys) {
+    $self->PlayerNextLife($_);
+  }
+  
+  $self->{nocollision} = 0;
+}
+
+
+##########################################################################
+# GAME DRAWING
+##########################################################################
+
+sub DrawScoreBoard {
+  my ($self) = @_;
+  my ($x, $y, $widthPerGuy);
+  
+  $self->DrawLevelIndicator( 10, $self->{scoreBoardTop} );
+  for (my $i = 0; $i < $::NumGuys; ++$i) {
+    $self->DrawScore( $::Players[$i], $::Players[$i]->{scoreX}, $::Players[$i]->{scoreY} );
+  }
+}
+
+sub LayoutScoreBoard {
+  my ($self) = @_;
+  my ($i, $scoreBoardHeight, $scoreBoardTop, $rows, $rowHeight, $leftMargin, $guysPerRow, $widthPerGuy);
+  
+  $scoreBoardTop = $::ScreenHeight + $::ScreenMargin * 2 + 5;
+  $scoreBoardHeight = $::PhysicalScreenHeight - $scoreBoardTop;
+  $rowHeight = 64;
+  $leftMargin = 150;
+  $rows = $::NumGuys > 4 ? 2 : 1;
+  $rows = 1 if ($scoreBoardTop + $rows * $rowHeight > $::PhysicalScreenHeight);
+  if ($scoreBoardTop + $rows * $rowHeight > $::PhysicalScreenHeight) {
+    $rowHeight = 32;
+    $scoreBoardTop = $::PhysicalScreenHeight - 32;
+  }
+  $guysPerRow = int ($::NumGuys / $rows + 0.5);
+  $widthPerGuy = ($::PhysicalScreenWidth - $leftMargin) / $guysPerRow;
+  for ($i = 0; $i < $::NumGuys; ++$i) {
+    $::Players[$i]->{scoreX} = $leftMargin + ($i % $guysPerRow) * $widthPerGuy;
+    $::Players[$i]->{scoreY} = $scoreBoardTop + int ($i / $guysPerRow) * $rowHeight;
+    $::Players[$i]->{scoreRect} = 
+      new SDL::Rect(-x => $::Players[$i]->{scoreX}, -y => $::Players[$i]->{scoreY}, -width=> 130, -height=> $rowHeight);
+  }
+  $self->{scoreBoardTop} = $scoreBoardTop;
+  $self->{scoreBoardHeight} = $scoreBoardHeight;
+  $self->{rowHeight} = $rowHeight;
+
+}
+
+sub DrawLevelIndicator {
+  my ($self, $x, $y) = @_;
+  
+  $self->{levelIndicatorRect} = new SDL::Rect(-x => $x, -y => $y, -width => 100, -height => 32) unless $self->{levelIndicatorRect};
+  $::App->fill( $self->{levelIndicatorRect}, new SDL::Color() );
+  $::App->print( $x, $y + 3, 'Level ' . ($self->{level}+1) );
+}
+
+sub PrintNumber {
+  my ($self, $player, $x, $y, $number) = @_;
+  my ($numberText, $i, $srcrect, $dstrect);
+
+  $numberText = sprintf("%d", $number);
+  $srcrect = new SDL::Rect(-width => 16, -height => 16, -y => 160);
+  $dstrect = new SDL::Rect(-width => 16, -height => 16, -y => $y, -x => $x);
+  for ($i = 0; $i < length($numberText); ++$i) {
+    $srcrect->x(320 + (ord(substr($numberText, $i)) - ord('0')) * 16);
+    $dstrect->x($x + $i * 16);
+    $player->{guySurface}->blit( $srcrect, $::App, $dstrect );
+  }
+}
+
+sub DrawScore {
+  my ($self, $player, $x, $y, $livesY) = @_;
+  my ($i, $srcrect, $dstrect);
+  
+  $::App->fill($player->{scoreRect}, new SDL::Color());
+  $self->PrintNumber( $player, $x, $y, $player->{score});
+  
+  $livesY = $self->{rowHeight} > 32 ? $y + 24 : $y + 16;
+  
+  $dstrect = new SDL::Rect(-width => 32, -height => 32, -x =>$x, -y => $livesY);
+  if ($self->{rowHeight} <=32) {
+    $srcrect = new SDL::Rect(-width => 16, -height => 16, -x =>320, -y => 176);
+  } else {
+    $srcrect = new SDL::Rect(-width => 32, -height => 32, -x =>320, -y => 128);
+  }
+  
+  if ($player->{lives} > 3) {
+    $player->{guySurface}->blit( $srcrect, $::App, $dstrect );
+    $self->PrintNumber( $player, $x + $srcrect->width() + 8, $livesY + ($srcrect->height() - 16 ) / 2, $player->{lives} );
+  } else {
+    foreach $i ( 0 .. $player->{lives}-1 ) {
+      $dstrect->x( $x + $i * ($srcrect->width() + 4) );
+      $player->{guySurface}->blit( $srcrect, $::App, $dstrect );
+    }
+  }
+}
+
+sub PreAdvanceAction {}
+
+sub AdvanceGame {
+  my $self = shift;
+  
+  %::GameEvents = ();
+  $self->PreAdvanceAction(); # Hook for something special
+
+  if ($self->{superKillCount} > 0) {
+    if (--$self->{superKillDelay} <= 0) {
+      --$self->{superKillCount};
+      $self->{superKillDelay} = 50;
+      $self->SuperKill($self->{superKillGuy});
+    }
+    $::GamePause = 0;
+  }
+
+  $self->AdvanceGameObjects();
+  if ($::GameEvents{earthquake}) {
+    &::PlaySound('quake');
+    foreach my $guy (@::GameObjects) {
+      $guy->Earthquake($::GameEvents{earthquake}) if ref $guy eq 'Guy';
+    }
+  }
+  
+  if ($::GameEvents{'pop'}) {
+    &::PlaySound('pop');
+  }
+  
+  if ($::GameEvents{meltdown} and $::DifficultyLevel->{name} ne 'Miki') {
+    $self->DeathballMeltdown();
+  } elsif ($::GameEvents{kill} ) {
+    $self->PlayerDeathSequence();
+    return if $self->{playersalive} <= 0;
+    $::GamePause = 200 if $::GamePause < 200;
+    &GamePause::Show();
+  } elsif ($::GameEvents{magic}) {
+    if ($::GamePause < 200) {
+      $::GamePause = 200; &::PlaySound('pause');
+      &GamePause::Show();
+    }
+  } elsif ($::GameEvents{superpause}) {
+    if ($::GamePause < 800) {
+      $::GamePause = 800; &::PlaySound('pause');
+      &GamePause::Show();
+    }
+  } elsif ($::GameEvents{superkill}) {
+    $self->{superKillCount} = 5;
+    $self->{superKillDelay} = 0;
+    $self->{superKillGuy} = $::GameEvents{superkillguy};
+    $self->{spawndelay} = 250;
+    $self->{superballdelay} += 1000; # 10 second penalty
+    my @gameObjects = @::GameObjects;
+    foreach my $spawningBall (@gameObjects) { $spawningBall->Delete if $spawningBall->{spawning}; }
+  }
+}
+
+sub Run {
+  my ($self) = shift;
+
+  $self->ResetGame();
+  &GameTimer::ResetTimer();
+
+  $self->{superKillCount} = 0;
+  $self->{superKillDelay} = 0;
+  $self->{superKillGuy} = undef;
+
+  while (1) {
+
+    # Calculate advance (how many game updates to perform)
+    my $advance = $self->CalculateAdvances();
+
+    # Advance the game
+
+    %::Events = ();
+    &::HandleEvents();
+    while ($advance--) {
+      return if $self->{abortgame};
+      $self->AdvanceGame();
+    }
+    if ($self->{playersalive} <= 0) {
+      my $gameoverSurface = new SDL::Surface(-name => "$::DataDir/gameover.png");
+      my @gameObjects = @::GameObjects;
+      foreach (@gameObjects) { $_->Delete() if ('DeadGuy' eq ref $_); }
+      $self->DrawGame();
+      $gameoverSurface->blit(0, $::App, new SDL::Rect(-x => ($::PhysicalScreenWidth - $gameoverSurface->width) / 2, -y => $::PhysicalScreenHeight / 2 - 100));
+      $::App->sync();
+      $::App->delay(1000);
+      for (my $i=0; $i < 20; ++$i) {
+        $::App->delay(100);
+        %::Events = ();
+        &::HandleEvents();
+        last if $self->{abortgame};
+        last if %::Events;
+      }
+      last;
+    }
+    $self->DrawGame();
+  }
+}
+
+
+##########################################################################
+package PanicGame;
+##########################################################################
+
+@PanicGame::ISA = qw(PlayableGameBase);
+
+sub new {
+  my ($class) = @_;
+  my $self = new PlayableGameBase;
+  %{$self} = (%{$self},
+    'spawndelay'     => 0,
+    'superballdelay' => 0,
+    'leveladvance'   => 0,
+    'panicleveldesc' => undef,
+  );
+  bless $self, $class;
+}
+
+sub ResetGame {
+  my $self = shift;
+
+  $self->SUPER::ResetGame();
+  $self->{spawndelay} = 0;
+  $self->{superballdelay} = 2500 + $self->Rand(2500);  # 25sec - 50sec
+  $self->{superballdelay} *= $::DifficultyLevel->{superball};
+}
+
+sub SetGameSpeed {
+  my ($self) = @_;
+  
+  $::GameSpeed = $self->{leveldesc}->{gamespeed} * 0.8 * $::DifficultyLevel->{speed};
+}
+
+sub SetGameLevel {
+  my ($self, $level) = @_;
+  my ($levelIndex);
+
+  $levelIndex = ($level > $#::PanicLevels) ? $#::PanicLevels : $level;
+  $self->{leveldesc} = $::PanicLevels[$levelIndex];
+  die unless $self->{leveldesc};
+  $self->{leveladvance} = 0;
+  $self->SUPER::SetGameLevel($level);
+}
+
+sub AdvanceGame {
+  my ($self) = @_;
+
+  $self->SpawnBalls() if $::GamePause <= 0;
+  $self->SUPER::AdvanceGame();
+}
+
+sub SpawnBalls {
+  my $self = shift;
+  my ($randmax, $rnd, $ballName, $balldesc, $deathBallCount, $earthquakeBallCount, $hasBonus);
+
+  --$self->{superballdelay};
+  if ($self->{superballdelay} <= 0) {
+    push @::GameObjects, (
+      &Ball::Spawn($::BallDesc{sprintf('super%d', $self->Rand(2))}, -1, $self->Rand(40) < 20 ? 0 : 1) );
+    $self->{superballdelay} = (2500 + $self->Rand(2000)) * $::DifficultyLevel->{superball}; # 25sec - 45sec
+  }
+
+  --$self->{spawndelay};
+  return if $self->{spawndelay} > 0;
+  $deathBallCount = $earthquakeBallCount = -1;
+  $randmax = 10000;
+  while ($self->{spawndelay} <= 0) {
+    if ($::DifficultyLevel->{name} eq 'Miki') {
+      $balldesc = $::BallDesc{'death'};
+      last;
+    }
+    $rnd = int($self->Rand($randmax));
+    $randmax = 0;
+
+    # We try to find the balldesc that falls at $rnd
+    my $ballRoulette = $self->{leveldesc}->{balls};
+    for (my $i = 0; $i < scalar @{$ballRoulette}; $i+=2) {
+      my $rouletteWeight = $ballRoulette->[$i+1];
+      $randmax += $rouletteWeight;
+      $rnd -= $rouletteWeight;
+      if ($rnd < 0) {
+        $ballName = $ballRoulette->[$i];
+        last;
+      }
+    }
+    next unless ($ballName); # $rnd too large.. We'll have a better $randmax this time!
+
+    ($balldesc) = $::BallDesc{$ballName};
+    if ($balldesc->{class} eq 'DeathBall') {
+      next unless $::DeathBallsEnabled;
+      $deathBallCount = &DeathBall::CountDeathBalls() if $deathBallCount < 0; # Lazy counting
+      next if $deathBallCount >= 2;
+    }
+    if ($balldesc->{class} eq 'EarthquakeBall') {
+      next unless $::EarthquakeBallsEnabled;
+      $earthquakeBallCount = &::EarthquakeBall::CountEarthquakeBalls if $earthquakeBallCount < 0;
+      next if $earthquakeBallCount >= 1;
+    }
+    if ($balldesc->{class} eq 'WaterBall') {
+      next unless $::WaterBallsEnabled;
+    }
+    if ($balldesc->{class} eq 'SeekerBall') {
+      next unless $::SeekerBallsEnabled;
+    }
+    last if $balldesc;
+  }
+
+  $hasBonus = 1 if ($balldesc->{width} >= 32) and ($self->Rand(1) < $::DifficultyLevel->{bonusprobability});
+
+  push @::GameObjects, ( &Ball::Spawn($balldesc, -1, $self->Rand(40) < 20 ? 0 : 1, $hasBonus) );
+  $self->{spawndelay} = $self->{leveldesc}->{spawndelay} * $balldesc->{spawndelay} * 50;
+  $self->{spawndelay} /= ($::NumGuys + 1) / 2;
+  $self->{spawndelay} *= $::DifficultyLevel->{spawnmultiplier};
+}
+
+sub OnBallPopped {
+  my $self = shift;
+
+  ++$self->{leveladvance};
+  if ($self->{leveladvance} >= 18) {
+    ::PlaySound('level');
+    $self->SetGameLevel($self->{level}+1);
+  }
+}
+
+sub DrawLevelIndicator {
+  my ($self, $x, $y) = @_;
+  
+  $self->{levelIndicatorRect} = new SDL::Rect(-x => $x, -y => $y, -width => 140, -height => $self->{scoreBoardHeight}) unless $self->{levelIndicatorRect};
+  $::App->fill( $self->{levelIndicatorRect}, new SDL::Color() );
+  $::LevelIndicatorSurface2->blit( 0, $::App, new SDL::Rect(-x => $x, -y => $y));
+  $::LevelIndicatorSurface->blit( new SDL::Rect(-width => 130 * $self->{leveladvance} / 17, -height => 30), $::App, new SDL::Rect(-x => $x, -y => $y));
+  $::App->print( $x + 25, $y + 3, 'Level ' . ($self->{level}+1) );
+  $::App->print( $x, $y + 40, sprintf('spd: %d/%d', $::GameSpeed * 100, $self->{leveldesc}->{spawndelay}) ) if $self->{scoreBoardHeight} >= 64;
+}
+
+
+##########################################################################
+package ChallengeGame;
+##########################################################################
+
+@ChallengeGame::ISA = qw(PlayableGameBase);
+
+sub new {
+  my ($class) = @_;
+  my $self = new PlayableGameBase;
+  %{$self} = (%{$self},
+    'challenge' => undef,
+  );
+  bless $self, $class;
+}
+
+sub CreateLevelNumberSurface {
+  my ($level) = @_;
+  my ($surface, $w);
+  
+  $::GlossyFont->use();
+  $w = &::TextWidth("Level $level");
+  $surface = new SDL::Surface( -name =>'',
+        -flags=>::SDL_SWSURFACE(), -width => $w+6, -height => 48, -depth => 32);
+  $surface->print( 3, 3, "Level $level" );
+  $::ScoreFont->use();
+  return $surface;
+}
+
+sub SetGameLevel {
+  my ($self, $level) = @_;
+
+  &SlowEffect::RemoveSlowEffects();
+  $self->SUPER::SetGameLevel($level);
+  $level = $#::ChallengeLevels if $level > $#::ChallengeLevels;
+  $self->{challenge} = $::ChallengeLevels[$level];
+  $self->SpawnChallenge();
+  
+  my ($levelObject, $surface);
+  $levelObject = new GameObject;
+  $surface = &CreateLevelNumberSurface($level + 1);
+  $levelObject->{surface} = $surface;
+  $levelObject->{w} = $surface->width();
+  $levelObject->{h} = $surface->height();
+  $levelObject->{x} = ($::ScreenWidth - $levelObject->{w}) / 2;
+  $levelObject->{y} = ($::ScreenHeight - $levelObject->{h}) / 2;
+  $levelObject->{draw} = sub { my $self = shift; $self->{surface}->blit( 0, $::App, $self->{rect} ); };
+  $levelObject->{advance} = sub { my $self = shift; $self->Delete() if ++$self->{time} > 200; };
+  push @::GameObjects, $levelObject;
+}
+
+sub AdvanceGameObjects {
+  my ($self) = @_;
+
+  if ($self->{nextlevel}) {
+    ::PlaySound('level');
+    $self->SetGameLevel($self->{level} + 1);
+    delete $self->{nextlevel};
+  }
+  if ($self->{playerspawned}) {
+    $self->SpawnChallenge();
+    $self->{playerspawned} = 0;
+  }
+  $self->SUPER::AdvanceGameObjects();
+}
+
+sub SpawnChallenge {
+  my $self = shift;
+  my ($challenge, @guys, $balldesc, $ball, $hasBonus, %balls, $numBalls, $ballsSpawned, @ballKeys, $x);
+  
+  @guys = $self->PopEveryBall();
+  foreach (@guys) {
+    $_->{bonusDelay} = 1;
+    $_->{invincible} = 1;
+  }
+  $::GamePause = 0;
+  delete $::GameEvents{magic};
+  $challenge = $self->{challenge};
+  die unless $challenge;
+  
+  while ($challenge =~ /(\w+)/g) {
+    $balldesc = $::BallDesc{$1};
+    warn "Unknown ball in challenge: $1" unless $balldesc;
+    $balls{$1}++;
+    $numBalls++;
+  }
+  $ballsSpawned = 0;
+  while ($ballsSpawned < $numBalls) {
+    foreach (keys %balls) {
+      next unless $balls{$_};
+      --$balls{$_};
+      $balldesc = $::BallDesc{$_};
+      $x = $::ScreenWidth * ($ballsSpawned * 2 + 1) / ($numBalls * 2) - $balldesc->{width} / 2;
+      $x = $::ScreenWidth - $balldesc->{width} if $x > $::ScreenWidth - $balldesc->{width};
+      $hasBonus = (($balldesc->{width} >= 32) and ($self->Rand(1) < $::DifficultyLevel->{bonusprobability}));
+      $ball = &Ball::Spawn($balldesc, $x, ($ballsSpawned % 2) ? 0 : 1, $hasBonus);
+      if ($ball->{w} <= 32) {
+        $ball->{ismagic} = $ball->{hasmagic} = 0;
+      }
+      push @::GameObjects, ($ball) ;
+      ++$ballsSpawned;
+    }
+  }
+}
+
+sub OnBallPopped {
+  my $self = shift;
+  my ($i);
+  
+  for ($i = $#::GameObjects; $i >= 0; --$i) {
+    if ($::GameObjects[$i]->isa('Ball')) {
+      return;
+    }
+  }
+  $self->{nextlevel} = 1;
+}
+
+
+##########################################################################
+package TutorialGame;
+##########################################################################
+
+@TutorialGame::ISA = qw(ChallengeGame);
+
+sub SetChallenge {
+  my ($self, $challenge) = @_;
+  
+  $self->{challenge} = $challenge;
+}
+
+sub SetGameLevel {
+  my ($self, $level) = @_;
+
+  $self->PlayableGameBase::SetGameLevel($level);
+  $self->SpawnChallenge();
+}
+
+sub AdvanceGameObjects {
+  my ($self) = @_;
+
+  if ($self->{nextlevel}) {
+    $self->{countDown} = 200;
+    delete $self->{nextlevel};
+  }
+  if ($self->{playerspawned}) {
+    $self->SpawnChallenge();
+    $self->{playerspawned} = 0;
+  }
+  if ($self->{countDown}) {
+    if (--$self->{countDown} < 1) {
+      $self->{abortgame} = 1;
+    }
+  }
+  $self->SUPER::AdvanceGameObjects();
+}
+
+
+##########################################################################
+package RecordGame;
+##########################################################################
+
+@RecordGame::ISA = qw(PanicGame);
+
+sub Rand {
+  my $self = shift;
+  my $result = int(rand($_[0]) * 100) / 100;
+  push @{$self->{rand}}, ($result);
+  return $result;
+}
+
+sub Rewind {
+  my $self = shift;
+  my ($recordEnd, $playback);
+  
+  $recordEnd = length($self->{record}) - $::NumGuys * 1000;
+  return if $recordEnd <= 0;
+  $self->{record} = substr($self->{record}, 0, $recordEnd);
+  $::Game = $playback = new DemoPlaybackGame($::NumGuys, $::DifficultyLevel, $self->{record}, $self->{rand}, {});
+  $playback->{skip} = 1;
+  $::Background->blit(0, $::App, 0);
+  $playback->Run();
+  
+  $playback->RestoreGameSettings();
+  %{$self} = %{$playback};
+  $::Game = $self;
+  $self->{abortgame} = 0;
+  print "Splicing {rand}: original length is ", scalar(@{$self->{rand}}), "; playback randpointer is $playback->{randpointer}.\n";
+  splice @{$self->{rand}}, $playback->{randpointer};
+  $::Background->blit(0, $::App, 0);
+  $self->DrawGame();
+  %::Events = %::Keys = ();
+  while( not %::Events ) { &::HandleEvents(); $::App->delay(100); }
+  &GameTimer::ResetTimer();
+}
+
+sub PreAdvanceAction {
+  my $self = shift;
+  my ($record);
+  
+  $self->Rewind() if $::Events{::SDLK_F3()};
+  
+  for (my $i=0; $i < $::NumGuys; ++$i) {
+    my $keys = $::Players[$i]->{keys};
+    $record = 0;
+    $record += 1 if $::Keys{$keys->[0]};
+    $record += 2 if $::Keys{$keys->[1]};
+    $record += 4 if $::Events{$keys->[2]};
+    if ($::Events{::SDLK_F2()} and $::NumGuys == 1) {
+      $record += 8;
+      $::GameEvents{superkill} = 1;
+    }
+    $self->{record} .= $record;
+  }
+}
+
+
+##########################################################################
+package PlaybackGame;
+##########################################################################
+
+@PlaybackGame::ISA = qw(PanicGame);
+
+sub new {
+  my ($class, $numGuys, $difficultyLevel, $record, $rand, $messages) = @_;
+  my $self;
+  
+  $self = new PanicGame;
+  %{$self} = (%{$self},
+    'record' => $record,
+    'rand' => $rand,
+    'messages' => $messages,
+  );
+  bless $self, $class;
+  $self->InitPlayback($numGuys);
+  &::SetDifficultyLevel($difficultyLevel);
+  return $self;
+}
+
+sub InitPlayback {
+  my ($self, $numGuys) = @_;
+  
+  $self->{recordpointer} = 0;
+  $self->{randpointer} = 0;
+  $self->{oldnumguys} = $::NumGuys;
+  $self->{olddifficultylevel} = $::DifficultyLevelIndex;
+  
+  $::NumGuys = $numGuys;
+  for (my $i=0; $i < $numGuys; ++$i) {
+    $::Players[$i]->{oldkeys} = $::Players[$i]->{keys};
+    $::Players[$i]->{keys} = [ "DLEFT$i", "DRIGHT$i", "DFIRE$i" ];
+  }
+}
+
+sub RestoreGameSettings {
+  my $self = shift;
+  
+  for (my $i=0; $i < $::NumGuys; ++$i) {
+    $::Players[$i]->{keys} = $::Players[$i]->{oldkeys};
+    delete $::Players[$i]->{oldkeys};
+  }
+  $::NumGuys = $self->{oldnumguys};
+  &::SetDifficultyLevel($self->{olddifficultylevel});
+}
+
+sub CalculateAdvances {
+  my $self = shift;
+  
+  return length($self->{record}) if $self->{skip};
+  return $self->SUPER::CalculateAdvances() * ($::Keys{::SDLK_f()} ? 15 : 1);
+}
+
+sub Rand {
+  my $self = shift;
+  
+  my $result = $self->{rand}->[$self->{randpointer}];
+  ++$self->{randpointer};
+  return $result;
+}
+
+sub PreAdvanceAction {
+  my $self = shift;
+  my ($record, $keys);
+
+  for (my $i=0; $i < $::NumGuys; ++$i) {
+
+    $record = substr($self->{record}, $self->{recordpointer}++, 1);
+    $keys = $::Players[$i]->{keys};
+    $::Keys{$keys->[0]} = $record & 1;
+    $::Keys{$keys->[1]} = $record & 2;
+    $::Events{$keys->[2]} = $record & 4;
+    $::GameEvents{superkill} = 1 if $::NumGuys == 1 and $record & 8;
+  }
+  
+  $self->{abortgame} = 1 if $self->{recordpointer} >= length $self->{record};
+  
+  if ($self->{messages}) {
+    my $message =  $self->{messages}->{$self->{recordpointer}};
+    $self->DisplayMessage($message) if $message;
+  }
+}
+
+sub DisplayMessage {
+  my ($self, $message) = @_;
+
+  my ($len, $adv) = (0, 0);
+  my $x = ( $::PhysicalScreenWidth - &::TextWidth($message) ) / 2;
+  my $y = $::PhysicalScreenHeight / 2;
+  $self->DrawGame();
+
+  while (1) {
+    &::HandleEvents();
+    return if $self->{abortgame};
+    my $advance = $self->CalculateAdvances();
+    $adv += $advance;
+    $len = int($adv / 5);
+
+    $::App->print($x, $y, substr($message, 0, $len) );
+    $::App->sync();
+    last if $len > length($message) + 15;
+  }
+  $::Background->blit(new SDL::Rect(-width=>$::PhysicalScreenWidth, -y=>$y, -height=>40), $::App, new SDL::Rect(-y => $y));
+}
+
+
+##########################################################################
+package DemoGame;
+##########################################################################
+
+sub ResetGame {
+  my $self = shift;
+  &::SetDifficultyLevel(1);
+  &::SetWeaponDuration(0);
+  $::Slippery = 0;
+  $self->PanicGame::ResetGame();
+
+  my $ball = &Ball::Create($::BallDesc[4], 400, 0, -10, 0);
+  $ball->GiveMagic();
+
+  push @::GameObjects, (
+    &Ball::Create($::BallDesc[0], 100, 0, 1),
+    &Ball::Create($::BallDesc{super0}, 300, 0, 0),
+    &Ball::Create($::BallDesc{super1}, 500, 0, 1),
+    $ball,
+  );
+  $::GamePause = 0;
+  $::GameSpeed = 0.8;
+  $self->{spawndelay} = $self->{superballdelay} = 1000000;
+  $self->{ballcounter} = 0;
+  $self->{balls} =  [ qw(b0 h0 w1 quake death seeker) ];
+}
+
+sub SetGameSpeed {
+  $::GameSpeed = 0.8;
+}
+
+sub SpawnBalls {
+  my $self = shift;
+  
+  return if (--$self->{spawndelay} > 0);
+  my $ballName = $self->{balls}->[$self->{ballcounter}];
+  return unless $ballName;
+  push @::GameObjects, ( &Ball::Spawn($::BallDesc{$ballName}, 100, 1, 0) );
+  $self->{spawndelay} = 1000000;
+  ++$self->{ballcounter};
+}
+
+sub RespawnPlayers {}
+sub OnBallPopped {}
+
+
+##########################################################################
+package DemoRecordGame;
+##########################################################################
+
+@DemoRecordGame::ISA = qw(DemoGame RecordGame);
+
+sub new {
+  my $class = shift;
+  my $self = new RecordGame(@_);
+  bless $self, $class;
+}
+
+
+##########################################################################
+package DemoPlaybackGame;
+##########################################################################
+
+@DemoPlaybackGame::ISA = qw(DemoGame PlaybackGame);
+
+sub new {
+  my $class = shift;
+  my $self = new PlaybackGame(@_);
+  bless $self, $class;
+}
+
+sub DrawScoreBoard {
+  my $self = shift;
+  my ($x, $y);
+  
+  $x = 10;
+  $y = $::ScreenHeight + 2 * $::ScreenMargin + 5;
+  if ($self->{anim} < 1) {
+    $::Background->print( $x, $y, "Press F to fast forward" );
+    $::App->print( $x, $y, "Press F to fast forward" );
+  } return;
+  $::App->fill( new SDL::Rect(-x=>0, -y=>$y, -width=>$::PhysicalScreenWidth, -height=>$::PhysicalScreenHeight - $y), new SDL::Color() );
+  $::App->print( $x, $y, $self->{recordpointer} );
+}
+
+
+##########################################################################
+package Menu;
+##########################################################################
+
+@Menu::ISA = qw(GameBase);
+use vars qw(@syms);
+@syms = qw(UNKNOWN FIRST BACKSPACE TAB CLEAR RETURN PAUSE ESCAPE SPACE EXCLAIM QUOTEDBL HASH DOLLAR AMPERSAND QUOTE LEFTPAREN RIGHTPAREN ASTERISK PLUS COMMA MINUS PERIOD SLASH 0 1 2 3 4 5 6 7 8 9 COLON SEMICOLON LESS EQUALS GREATER QUESTION AT LEFTBRACKET BACKSLASH RIGHTBRACKET CARET UNDERSCORE BACKQUOTE a b c d e f g h i j k l m n o p q r s t u v w x y z DELETE WORLD_0 WORLD_1 WORLD_2 WORLD_3 WORLD_4 WORLD_5 WORLD_6 WORLD_7 WORLD_8 WORLD_9 WORLD_10 WORLD_11 WORLD_12 WORLD_13 WORLD_14 WORLD_15 WORLD_16 WORLD_17 WORLD_18 WORLD_19 WORLD_20 WORLD_21 WORLD_22 WORLD_23 WORLD_24 WORLD_25 WORLD_26 WORLD_27 WORLD_28 WORLD_29 WORLD_30 WORLD_31 WORLD_32 WORLD_33 WORLD_34 WORLD_35 WORLD_36 WORLD_37 WORLD_38 WORLD_39 WORLD_40 WORLD_41 WORLD_42 WORLD_43 WORLD_44 WORLD_45 WORLD_46 WORLD_47 WORLD_48 WORLD_49 WORLD_50 WORLD_51 WORLD_52 WORLD_53 WORLD_54 WORLD_55 WORLD_56 WORLD_57 WORLD_58 WORLD_59 WORLD_60 WORLD_61 WORLD_62 WORLD_63 WORLD_64 WORLD_65 WORLD_66 WORLD_67 WORLD_68 WORLD_69 WORLD_70 WORLD_71 WORLD_72 WORLD_73 WORLD_74 WORLD_75 WORLD_76 WORLD_77 WORLD_78 WORLD_79 WORLD_80 WORLD_81 WORLD_82 WORLD_83 WORLD_84 WORLD_85 WORLD_86 WORLD_87 WORLD_88 WORLD_89 WORLD_90 WORLD_91 WORLD_92 WORLD_93 WORLD_94 WORLD_95 KP0 KP1 KP2 KP3 KP4 KP5 KP6 KP7 KP8 KP9 KP_PERIOD KP_DIVIDE KP_MULTIPLY KP_MINUS KP_PLUS KP_ENTER KP_EQUALS UP DOWN RIGHT LEFT INSERT HOME END PAGEUP PAGEDOWN F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 NUMLOCK CAPSLOCK SCROLLOCK RSHIFT LSHIFT RCTRL LCTRL RALT LALT RMETA LMETA LSUPER RSUPER MODE COMPOSE HELP PRINT SYSREQ BREAK MENU POWER EURO UNDO LAST );
+
+sub Exit {
+  my $self = shift;
+  
+  &::SaveConfig();
+  $self->SUPER::Exit();
+}
+
+sub SetGameSpeed {
+  $::GameSpeed = 1.0;
+}
+
+sub ShowTooltip {
+  my $self = shift;
+  my (@lines, $y, $yinc, $rect);
+
+  @lines = @_;
+  @lines = ("Pang Zero $::Version (C) 2006 by UPi (upi\@sourceforge.net)",
+    "Use cursor keys to navigate menu, Enter to select",
+    "P pauses the game, Esc quits") unless scalar @lines;
+  
+  $::ScoreFont->use();
+  ($y, $yinc) = ($::ScreenHeight + 35, 20);
+  $rect = new SDL::Rect( -x => 0, -y => $y, 
+    -w => $::PhysicalScreenWidth, -h => $::PhysicalScreenWidth - $y );
+  $::Background->fill($rect, new SDL::Color);
+  foreach (@lines) {
+    $::Background->print( 10, $y, $_ ) if $y + $yinc < $::PhysicalScreenHeight;
+    $y += $yinc;
+  }
+  $rect = new SDL::Rect( -x => 0, -y => $::ScreenHeight + 35, 
+    -w => $::PhysicalScreenWidth, -h => $::PhysicalScreenWidth - $y );
+  $::Background->blit($rect, $::App, $rect);
+  $::MenuFont->use();
+}
+
+sub MenuAdvance {
+  my $self = shift;
+
+  my $advance = $self->CalculateAdvances();
+  %::Events = %::MenuEvents = ();
+  %::GameEvents = ();
+  &::HandleEvents('readbothaxes');
+  while ($advance--) {
+    $self->AdvanceGameObjects();
+  }
+  while (ref($::GameObjects[$#::GameObjects]) ne 'MenuItem') { unshift @::GameObjects, (pop @::GameObjects); }
+  $self->DrawGame();
+}
+
+sub SetCurrentItemIndex {
+  my ($self, $index) = @_;
+
+  return if ($index < 0 or $index >= scalar @{$self->{menuItems}} or not $self->{menuItems}->[$index]->CanSelect());
+  $self->{currentItemIndex} = $index;
+  $self->{currentItem} = $self->{menuItems}->[$index];
+  $self->{currentItem}->Select();
+}
+
+sub EnterSubMenu {
+  my $self = shift;
+  my ($recall, $menuItem);
+  
+  $recall->{oldItems} = $self->{menuItems};
+  $recall->{oldCurrentItemIndex} = $self->{currentItemIndex};
+  foreach $menuItem (@{$self->{menuItems}}) { $menuItem->Hide(); }
+  $self->{menuItems} = [];
+  
+  return $recall;
+}
+
+sub LeaveSubMenu {
+  my ($self, $recall) = @_;
+  my ($menuItem);
+
+  foreach $menuItem (@{$self->{menuItems}}) { $menuItem->HideAndDelete(); }
+  $self->{menuItems} = $recall->{oldItems};
+  foreach $menuItem (@{$self->{menuItems}}) { $menuItem->Show(); }
+  $self->SetCurrentItemIndex($recall->{oldCurrentItemIndex});
+  $self->{abortgame} = 0;
+}
+
+sub HandleUpDownKeys {
+  my $self = shift;
+
+  if ($::MenuEvents{DOWN}) {
+    $self->SetCurrentItemIndex( $self->{currentItemIndex} + 1 );
+  }
+  if ($::MenuEvents{UP}) {
+    $self->SetCurrentItemIndex( $self->{currentItemIndex} - 1 );
+  }
+}
+
+sub KeyToText {
+  my ($key) = @_;
+  eval("::SDLK_$_() eq $key") and return ucfirst(lc($_)) foreach @syms;
+  print "No match for $key\n";
+  return "???";
+}
+
+sub KeysToText {
+  my $keys = shift;
+  my ($retval);
+  if ( $keys->[0] =~ /^[LRB](\d)+$/ ) {
+    return "Joystick $1";
+  }
+  return join(' / ', &KeyToText($keys->[0]), &KeyToText($keys->[1]), &KeyToText($keys->[2]) );
+}
+
+sub RunTutorial {
+  my ($self, $ball) = @_;
+  my ($recall, @oldGameObjects, %oldGuys, %oldHarpoons, $oldGame);
+  
+  $recall = $self->EnterSubMenu();
+  @oldGameObjects = @::GameObjects;
+  %oldGuys = %Guy::Guys;
+  %oldHarpoons = %Harpoon::Harpoons;
+  $oldGame = $::Game;
+  
+  $::ScoreFont->use();
+  $::Game = new TutorialGame;
+  $::Game->SetChallenge($ball);
+  $::Game->Run();
+  $::MenuFont->use();
+  $self->SetGameSpeed();
+  
+  foreach (@::GameObjects) { $_->Clear(); }
+  @::GameObjects = @oldGameObjects;
+  %Guy::Guys = %oldGuys;
+  %Harpoon::Harpoons = %oldHarpoons;
+  $::Game = $oldGame;
+  $self->LeaveSubMenu($recall);
+}
+
+sub RunTutorialMenu {
+  my $self = shift;
+  my ($baseY, $baseX, $menuItem, $recall, @tutorials);
+
+  $recall = $self->EnterSubMenu();
+  $self->{title}->Hide();
+  $baseY = 50;
+  
+  @tutorials = (
+    ['n2', 'Normal Ball', 'There is nothing special about this ball. Just keep shooting it.'],
+    ['b0', 'Bouncy Ball', 'This ball bounces higher than the normal ball.', 'Otherwise it behaves the same.'],
+    ['h0', 'Hexa', 'The Hexa is weightless and travels in a straight line.', 'With practice you can shoot it just as easily as the normal ball.'],
+    ['w1', 'Water Ball', 'The water ball pops each time it bounces.', 'This can create a tide of small balls fast.', 'Mop it up quickly.'],
+    ['f1', 'Fragile Ball', 'The fragile ball shatters into little bits the moment it is hit.', 'Prepare for a shower of small balls.'],
+    ['death', 'Death Ball', 'This ball cannot be killed with your harpoon.', 'Shooting will make it multiply. Too many death balls cause meltdown.', 'Evade it for 20 seconds to get rid of it.'],
+    ['seeker', 'Seeker Ball', 'The seeker ball will chase you forever.', 'You have to keep moving and shooting to evade it.'],
+    ['quake', 'Earthquake Ball', 'This ball is super heavy.', 'In fact the earth will quake each time it bounces.', 'Shoot it quickly, or it will send you flying.'],
+    ['u0', 'Upside Down Ball', 'This crazy ball bounces on the top of the screen.', 'Maybe it came from an alternate universe,', 'where gravity is negative?'],
+    ['super0, n1', 'Super Ball', 'The Super Ball is your friend. It will still kill you on touch.', 'The green super ball will pause the game for 8 seconds.', 'The gold super ball will kill every ball.'],
+  );
+  
+  push @{$self->{menuItems}},
+    new MenuItem( 50, $baseY, "Back to main menu"),
+    new MenuItem( 50, $baseY += 40, "Run Demo" );
+  
+  $baseY = 110;
+  $baseX = 50;
+  foreach (@tutorials) {
+    my @tutItem = @{$_};
+    my $challenge = shift @tutItem;
+    my $menuItem = new MenuItem( $baseX, $baseY += 40, @tutItem );
+    $menuItem->{challenge} = $challenge;
+    push @{$self->{menuItems}}, $menuItem;
+    if ($baseY + 140 >= $::ScreenHeight) {
+      $baseY = 110;
+      $baseX = 450;
+    }
+  }
+  push @::GameObjects, (@{$self->{menuItems}});
+  $self->SetCurrentItemIndex(1);
+
+  while (1) {
+    $self->MenuAdvance();
+    last if $self->{abortgame};
+    $self->HandleUpDownKeys();
+    
+    if ($::MenuEvents{LEFT} and $self->{currentItemIndex} > 1) {
+      $self->SetCurrentItemIndex($self->{currentItemIndex} - 5);
+    }
+    if ($::MenuEvents{RIGHT} and $self->{currentItemIndex} > 1) {
+      $self->SetCurrentItemIndex($self->{currentItemIndex} + 5);
+    }
+    if ($::MenuEvents{BUTTON}) {
+      if (0 == $self->{currentItemIndex}) {
+        last;
+      } elsif (1 == $self->{currentItemIndex}) {
+        $self->{result} = 'demo';
+        last;
+      } else {
+        $self->RunTutorial($self->{currentItem}->{challenge});
+      }
+    }
+  }
+  
+  $self->LeaveSubMenu($recall);
+  $self->{title}->Show();
+}
+
+sub RunCredits {
+  my ($self, $demo) = @_;
+  my ($recall, $i, $ball, @balls, @oldGameObjects, $time);
+  
+  $time = $self->{anim};
+  $recall = $self->EnterSubMenu();
+  @oldGameObjects = @::GameObjects;
+  foreach my $gameObject (@::GameObjects) {
+    $gameObject->Clear();
+  }
+  @::GameObjects = ($self->{title});
+  push @::GameObjects, (new FpsIndicator);
+  my ($y, $yinc) = (110, 36);
+  push @{$self->{menuItems}}, (
+    new MenuItem( 100, $y += $yinc, "Written by: UPi <upi\@sourceforge.net>"),
+    new MenuItem( 100, $y += $yinc, "Music by: SAdam" ),
+    new MenuItem( 100, $y += $yinc, "Graphics by: UPi, DaniGM, EBlanca" ),
+    new MenuItem( 100, $y += $yinc * 1.5, "TESTERS" ),
+    new MenuItem( 100, $y += $yinc, "Ulmar, Surba, Miki, Aisha, Descant" ),
+    new MenuItem( 100, $y += $yinc * 1.5, "http://apocalypse.rulez.org/pangzero" ),
+  );
+  foreach $i (@{$self->{menuItems}}) { $i->Center(); }
+  
+  for ($i = 0; $i < 20; ++$i) {
+    $ball = &Ball::Spawn( $::BallDesc{'credits1'}, 100, 1, 0 );
+    $ball->{y} = $i * -5;
+    push @balls, ($ball);
+    $ball = &Ball::Spawn( $::BallDesc{'credits2'}, $::ScreenWidth - 132, -1, 0 );
+    $ball->{y} = $i * -5;
+    push @balls, ($ball);
+  }
+  push @::GameObjects, @balls;
+  push @::GameObjects, (@{$self->{menuItems}});
+  
+  while (1) {
+    $self->MenuAdvance();
+    last if $self->{abortgame};
+    if ($demo) {
+      last if %::Events;
+      last if $self->{anim} - $time > 20 * 100; # 30s
+    }
+  }
+  
+  @::GameObjects = @oldGameObjects;
+  foreach (@balls) { $_->Delete(); }
+  $self->LeaveSubMenu($recall);
+}
+
+sub RunHighScore {
+  my ($self, $difficultyLevel, $table, $auto) = @_;
+  my ($time, $recall, $y, $yinc, $retval);
+
+  die unless $table =~/^(Cha|Pan)$/;
+  $time = 0;
+  $recall = $self->EnterSubMenu();
+  ($y, $yinc) = (110, 40);
+  $difficultyLevel = $::DifficultyLevels[$difficultyLevel];
+  push @{$self->{menuItems}}, (
+    new MenuItem( 320, 50, ($table eq 'Cha' ? 'Challenge Game - ' : 'Panic Game - ') . $difficultyLevel->{name} ), #. " difficulty" ),
+    new MenuItem( 50, $y, "Highest Score" ),
+    new MenuItem( 480, $y, "Highest Level" ),
+  );
+  $self->{menuItems}->[0]->Center();
+  $y += $yinc;
+  foreach (@{$difficultyLevel->{"highScoreTable$table"}}) {
+    push @{$self->{menuItems}}, ( new MenuItem( 10, $y += $yinc, $_->[0] ) );
+    push @{$self->{menuItems}}, ( new MenuItem( 250, $y, $_->[1] ) );
+  }
+  $y = 110 + $yinc;
+  foreach (@{$difficultyLevel->{"highLevelTable$table"}}) {
+    push @{$self->{menuItems}}, ( new MenuItem( 460, $y += $yinc, $_->[0] ) );
+    push @{$self->{menuItems}}, ( new MenuItem( 700, $y, $_->[1] ) );
+  }
+  push @::GameObjects, (@{$self->{menuItems}});
+  
+  while (not $retval) {
+    $self->MenuAdvance();
+    if ($self->{abortgame}) { 
+      $retval = 'abortgame'; last; 
+    }
+    if ($auto) {
+      $retval = 'next' if ++$time > 100 * 6;
+      $retval = 'abortgame' if %::Events;
+    } else {
+      if ($::MenuEvents{LEFT} or $::MenuEvents{UP}) {
+        $retval = 'prev'; last;
+      } elsif ($::MenuEvents{RIGHT} or $::MenuEvents{DOWN}) {
+        $retval = 'next'; last;
+      } elsif ($::MenuEvents{BUTTON}) {
+        $retval = 'abortgame';
+      }
+    }
+  }
+  $self->LeaveSubMenu($recall);
+  return $retval;
+}
+
+sub RunHighScores {
+  my ($self, $auto) = @_;
+  my ($recall, $retval, $i, $table, @tables);
+  
+  if ($auto) {
+    $self->ShowTooltip();
+  } else {
+    $self->ShowTooltip("Use arrow keys to navigate, Esc to go back");
+  }
+  $recall = $self->EnterSubMenu();
+  $self->{title}->Hide();
+  $table = 0;
+  @tables = ( [0, 'Pan'], [0, 'Cha'], [1, 'Pan'], [1, 'Cha'], [2, 'Pan'], [2, 'Cha'], [3, 'Pan'], [3, 'Cha'], [4, 'Pan'] );
+  
+  while (1) {
+    $retval = $self->RunHighScore( @{$tables[$table]}, $auto );
+    if ($retval eq 'next') {
+      ++$table;
+      $table = 0 if $table == scalar @tables;
+      last if $table == 0 and $auto;
+    } elsif ($retval eq 'prev') {
+      --$table;
+      $table = $#tables if $table < 0;
+    } else {
+      last;
+    }
+  }
+  
+  $self->ShowTooltip();
+  $self->{title}->Show();
+  $self->LeaveSubMenu($recall);
+}
+
+sub UpdateBallMixerMenu {
+  my $self = shift;
+
+  $self->{menuItems}->[1]->SetParameter( $::DeathBallsEnabled ? 'on' : 'off' );
+  $self->{menuItems}->[2]->SetParameter( $::EarthquakeBallsEnabled ? 'on' : 'off' );
+  $self->{menuItems}->[3]->SetParameter( $::WaterBallsEnabled ? 'on' : 'off' );
+  $self->{menuItems}->[4]->SetParameter( $::SeekerBallsEnabled ? 'on' : 'off' );
+}
+
+sub RunBallMixerMenu {
+  my $self = shift;
+  my ($recall);
+  
+  $recall = $self->EnterSubMenu();
+  my ($y, $yinc) = (110, 40);
+  push @{$self->{menuItems}}, (
+    new MenuItem( 100, $y += $yinc, "Back to options menu"),
+    new MenuItem( 100, $y += $yinc + 20, "Death Balls: ", "Death balls multiply every time you shoot them.", "You can get rid of them by NOT shooting them for 20 seconds." ),
+    new MenuItem( 100, $y += $yinc, "Earthquake Balls: ", "Earthquake balls shake the ground when they bounce.", "This sends you flying. Very dangerous." ),
+    new MenuItem( 100, $y += $yinc, "Water Balls: ", "Water balls quickly dissolve, creating a flood of small balls." ),
+    new MenuItem( 100, $y += $yinc, "Seeker Balls: ", "This ball picks a target, and chases him." ),
+  );
+  $self->UpdateBallMixerMenu();
+  push @::GameObjects, (@{$self->{menuItems}});
+  $self->SetCurrentItemIndex(0);
+  
+  while (1) {
+    $self->MenuAdvance();
+    last if $self->{abortgame};
+    $self->HandleUpDownKeys();
+
+    if ($::MenuEvents{BUTTON}) {
+      last if $self->{currentItemIndex} == 0; # Back to main
+      if ($self->{currentItemIndex} == 1) {
+        $::DeathBallsEnabled = 1 - $::DeathBallsEnabled; $self->UpdateBallMixerMenu();
+      } elsif ($self->{currentItemIndex} == 2) {
+        $::EarthquakeBallsEnabled = 1 - $::EarthquakeBallsEnabled; $self->UpdateBallMixerMenu();
+      } elsif ($self->{currentItemIndex} == 3) {
+        $::WaterBallsEnabled = 1 - $::WaterBallsEnabled; $self->UpdateBallMixerMenu();
+      } elsif ($self->{currentItemIndex} == 4) {
+        $::SeekerBallsEnabled = 1 - $::SeekerBallsEnabled; $self->UpdateBallMixerMenu();
+      }
+    }
+  }
+  
+  $self->LeaveSubMenu($recall);
+}
+
+sub UpdateOptionsMenu {
+  my $self = shift;
+
+  $self->{menuItems}->[1]->SetParameter( $::Slippery ? 'on' : 'off' );
+  $self->{menuItems}->[3]->SetParameter( $::SoundEnabled ? 'on' : 'off');
+  $self->{menuItems}->[4]->SetParameter( $::MusicEnabled ? 'on' : 'off');
+  $self->{menuItems}->[5]->SetText('< ' . ('Windowed', 'Fullscreen', 'Widescreen')[$::FullScreen]
+    . ($self->{restart} ? ' (requires restart)' : '') . ' >');
+  $self->{menuItems}->[6]->SetParameter( $::ShowWebsite eq $::Version ? 'no' : 'yes' );
+}
+
+sub RunOptionsMenu {
+  my $self = shift;
+  my ($recall);
+  
+  $recall = $self->EnterSubMenu();
+  my ($y, $yinc) = (80, 38);
+  push @{$self->{menuItems}}, (
+    new MenuItem( 100, $y += $yinc, "Back to main menu"),
+    new MenuItem( 100, $y += $yinc + 20, "Slippery floor: ", "Turning this on creates and icy floor that you slide on", "This makes the game a lot harder!" ),
+    new MenuItem( 100, $y += $yinc, "Ball Mixer...", "Turn the special balls on and off.", "This can make the game easier." ),
+    new MenuItem( 100, $y += $yinc, "Sound: ", "Press Enter to turn sound effects on/off." ),
+    new MenuItem( 100, $y += $yinc, "Music: ", "Press Enter to turn the background music on/off." ),
+    new MenuItem(  68, $y += $yinc, "Fullscreen", "Press Left/Right to set the screen mode.", "If you have a wide screen (e.g. 16:9), use the Widescreen option.", "This doesn't take effect until you quit and restart the game." ),
+    new MenuItem( 100, $y += $yinc, "Show website at exit: ", "Should Pang Zero take you to our web site at exit?", "True enlightenment awaits you online!" ),
+  );
+  $self->UpdateOptionsMenu();
+  push @::GameObjects, (@{$self->{menuItems}});
+  $self->SetCurrentItemIndex(0);
+  
+  while (1) {
+    $self->MenuAdvance();
+    last if $self->{abortgame};
+    $self->HandleUpDownKeys();
+
+    if ($::MenuEvents{LEFT} and $self->{currentItemIndex} == 5) {
+      if ($::FullScreen > 0) { --$::FullScreen; $self->{restart} = 1; }
+      $self->UpdateOptionsMenu();
+    }
+    if ($::MenuEvents{RIGHT} and $self->{currentItemIndex} == 5) {
+      if ($::FullScreen < 2) { ++$::FullScreen; $self->{restart} = 1; }
+      $self->UpdateOptionsMenu();
+    }
+    if ($::MenuEvents{BUTTON}) {
+      last if $self->{currentItemIndex} == 0; # Back to main
+      if ($self->{currentItemIndex} == 2) {
+        $self->RunBallMixerMenu();
+      } elsif ($self->{currentItemIndex} == 1) {
+        $::Slippery = $::Slippery ? 0 : 1; $self->UpdateOptionsMenu();
+      } elsif ($self->{currentItemIndex} == 3) {
+        $::SoundEnabled = 1 - $::SoundEnabled; $self->UpdateOptionsMenu();
+      } elsif ($self->{currentItemIndex} == 4) {
+        &::SetMusicEnabled(1 - $::MusicEnabled); $self->UpdateOptionsMenu();
+      } elsif ($self->{currentItemIndex} == 6) {
+        $::ShowWebsite = ($::ShowWebsite eq $::Version ? 0 : $::Version); $self->UpdateOptionsMenu();
+      }
+    }
+  }
+  
+  $self->LeaveSubMenu($recall);
+}
+
+sub UpdateControlsMenu {
+  my $self = shift;
+
+  $self->{menuItems}->[1]->SetText("< Number of Players: $::NumGuys >");
+  for (my $i = 1 ; $i <= 6; ++$i) {
+    if ($i > $::NumGuys) {
+      $self->{menuItems}->[$i+1]->Hide();
+      $self->{keysAsText}->[$i-1]->Hide();
+    } else {
+      $self->{menuItems}->[$i+1]->Show();
+      $self->{keysAsText}->[$i-1]->Show();
+    }
+  }
+}
+
+sub RunControlsMenu {
+  my $self = shift;
+  my ($baseY, $menuItem, $recall, @keysAsText, @yPositions);
+
+  $recall = $self->EnterSubMenu();
+  $self->{title}->Hide();
+  $baseY = 50;
+  
+  push @{$self->{menuItems}},
+    new MenuItem( 50, $baseY, "Back to main menu"),
+    new MenuItem( 18, $baseY += 40, "<>", "Use left and right key to set the number of players here.", "The more the merrier!", "Don't forget to set their keys below." );
+  for ( my $i = 1; $i <= 6; ++$i ) {
+    $yPositions[$i] = $baseY + 20 + $i * 40;
+    push @{$self->{menuItems}}, (new MenuItem( 50, $yPositions[$i], "Player $i"));
+    push @keysAsText, (new MenuItem( 220, $yPositions[$i], &KeysToText($::Players[$i-1]->{keys})) );
+  }
+  push @::GameObjects, (@keysAsText, @{$self->{menuItems}});
+  $self->{keysAsText} = \@keysAsText;
+  $self->UpdateControlsMenu();
+  $self->SetCurrentItemIndex(1);
+
+  while (1) {
+    $self->MenuAdvance();
+    last if $self->{abortgame};
+    $self->HandleUpDownKeys();
+    if ($::MenuEvents{LEFT} and $self->{currentItemIndex} == 1) {
+      --$::NumGuys if $::NumGuys > 1;
+      $self->UpdateControlsMenu();
+    }
+    if ($::MenuEvents{RIGHT} and $self->{currentItemIndex} == 1) {
+      ++$::NumGuys if $::NumGuys < 6;
+      $self->UpdateControlsMenu();
+    }
+    if ($::MenuEvents{BUTTON}) {
+      last if $self->{currentItemIndex} == 0; # Back to main
+      next if $self->{currentItemIndex} == 1;
+      my $player = $::Players[$self->{currentItemIndex} - 2];
+      my $key = 0;
+      my $keysAsText = $keysAsText[$self->{currentItemIndex} - 2];
+      $self->{currentItem}->Hide();
+      $keysAsText->Hide();
+      my @prompts = ("Press 'LEFT' key or joystick button", "Press 'RIGHT' key", "Press 'FIRE' key");
+      my $keyMenuItem = new MenuItem( 100, $yPositions[$self->{currentItemIndex} - 1], $prompts[0] );
+      push @::GameObjects, ($keyMenuItem);
+      $keyMenuItem->Select;
+      while (1) {
+        $self->MenuAdvance();
+        if ($self->{abortgame}) {
+          $self->{abortgame} = 0;
+          goto endOfKeyEntry;
+        }
+        if (%::Events) {
+          my ($event) = %::Events;
+          if ($event =~ /^B(\d+)$/) {
+            $player->{keys} = ["L$1", "R$1", "B$1"];
+            last;
+          }
+          $player->{keys}->[$key] = $event;
+          ++$key;
+          last if $key >= 3;
+          $keyMenuItem->SetText($prompts[$key]);
+        }
+      }
+      
+      $keyMenuItem->SetText('Select character');
+      my $guy = new Guy($player);
+      $guy->{x} = $keyMenuItem->{targetX} + $keyMenuItem->{w} + 10;
+      $guy->{y} = $keyMenuItem->{targetY} - 10;
+      $guy->DemoMode();
+      splice @::GameObjects, -2, 0, $guy;
+      while (1) {
+        $self->MenuAdvance();
+        if ($self->{abortgame}) {
+          $self->{abortgame} = 0;
+          goto endOfKeyEntry;
+        }
+        if ($::Events{$player->{keys}->[0]}) {
+          --$player->{imagefileindex};
+          $player->{imagefileindex} = $#::GuyImageFiles if $player->{imagefileindex} < 0;
+          &::MakeGuySurface($player); $guy->{surface} = $player->{guySurface}; $guy->CalculateAnimPhases();
+        } elsif ($::Events{$player->{keys}->[1]}) {
+          ++$player->{imagefileindex};
+          $player->{imagefileindex} = 0 if $player->{imagefileindex} > $#::GuyImageFiles;
+          &::MakeGuySurface($player); $guy->{surface} = $player->{guySurface}; $guy->CalculateAnimPhases();
+        } elsif ($::Events{$player->{keys}->[2]}) {
+          last;
+        }
+      }
+      
+      $keyMenuItem->SetText('Select color');
+      while (1) {
+        $self->MenuAdvance();
+        if ($self->{abortgame}) {
+          $self->{abortgame} = 0;
+          goto endOfKeyEntry;
+        }
+        if ($::Events{$player->{keys}->[0]}) {
+          --$player->{colorindex};
+          $player->{colorindex} = $#::GuyColors if $player->{colorindex} < 0;
+          &::MakeGuySurface($player); $guy->{surface} = $player->{guySurface};
+        } elsif ($::Events{$player->{keys}->[1]}) {
+          ++$player->{colorindex};
+          $player->{colorindex} = 0 if $player->{colorindex} > $#::GuyColors;
+          &::MakeGuySurface($player); $guy->{surface} = $player->{guySurface};
+        } elsif ($::Events{$player->{keys}->[2]}) {
+          last;
+        }
+      }
+      
+      endOfKeyEntry:
+      $guy->Delete() if $guy;
+      $self->{currentItem}->Show();
+      $self->{currentItem}->Select;
+      $keysAsText->SetText(&KeysToText($player->{keys}));
+      $keysAsText->Show;
+      $keyMenuItem->HideAndDelete;
+    }
+  }
+  
+  foreach my $menuItem (@keysAsText) { $menuItem->HideAndDelete(); }
+  $self->LeaveSubMenu($recall);
+  $self->{title}->Show();
+  delete $self->{keysAsText};
+}
+
+sub UpdateGameMenu {
+  my $self = shift;
+
+  $self->{menuItems}->[3]->SetText("< Difficulty: $::DifficultyLevel->{name} >");
+  $self->{menuItems}->[4]->SetText("< Weapon Duration: $::WeaponDuration->{name} >");
+}
+
+sub RunGameMenu {
+  my $self = shift;
+  my ($recall);
+  
+  $recall = $self->EnterSubMenu();
+  my ($y, $yinc) = (110, 40);
+  push @{$self->{menuItems}}, (
+    new MenuItem( 100, $y += $yinc, "Back to main menu", "Press Enter to return to the main menu"),
+    new MenuItem( 100, $y += $yinc + 20, "Start Panic Game", "In Panic Mode, the balls continuously fall from the sky.", "Can you keep up the pace?", "This game is for advanced players." ),
+    new MenuItem( 100, $y += $yinc, "Start Challenge Game", "More and more difficult levels challenge your skill.", "This game is best for beginners." ),
+    new MenuItem(  68, $y += $yinc, "<>", "Press the Left and Right keys to set the game difficulty.", "The game speed and number of harpoons depend on this setting.", "The `Miki' level is for Deathball Specialists (Panic mode only)." ),
+    new MenuItem(  68, $y += $yinc, "<>", "Press the Left and Right keys to set the bonus weapon duration.", "This will determine how long you can use bonus weapons." ),
+  );
+  $self->UpdateGameMenu();
+  push @::GameObjects, (@{$self->{menuItems}});
+  $self->SetCurrentItemIndex($::LastGameMenuResult ? $::LastGameMenuResult : 1);
+  
+  while (1) {
+    $self->MenuAdvance();
+    last if $self->{abortgame};
+    $self->HandleUpDownKeys();
+
+    if ($::MenuEvents{LEFT} and $self->{currentItemIndex} == 3) {
+      &::SetDifficultyLevel($::DifficultyLevelIndex - 1);
+      $self->UpdateGameMenu();
+    }
+    if ($::MenuEvents{RIGHT} and $self->{currentItemIndex} == 3) {
+      &::SetDifficultyLevel($::DifficultyLevelIndex + 1);
+      $self->UpdateGameMenu();
+    }
+    if ($::MenuEvents{LEFT} and $self->{currentItemIndex} == 4) {
+      &::SetWeaponDuration($::WeaponDurationIndex - 1);
+      $self->UpdateGameMenu();
+    }
+    if ($::MenuEvents{RIGHT} and $self->{currentItemIndex} == 4) {
+      &::SetWeaponDuration($::WeaponDurationIndex + 1);
+      $self->UpdateGameMenu();
+    }
+    if ($::MenuEvents{BUTTON}) {
+      last if $self->{currentItemIndex} == 0; # Back to main
+      if ($self->{currentItemIndex} == 1) {
+        $self->{result} = 'panic';
+      } elsif ($self->{currentItemIndex} == 2) {
+        if ($::DifficultyLevel->{name} ne 'Miki') {
+          $self->{result} = 'challenge';
+        } else {
+          $self->ShowTooltip("Miki difficulty level is for panic mode only.");
+        }
+      }
+    }
+    last if $self->{result};
+  }
+  
+  $::LastGameMenuResult = $self->{currentItemIndex};
+  $self->LeaveSubMenu($recall);
+}
+
+sub OnMenuIdle {
+  my $self = shift;
+  
+  ++$self->{idle};
+  if    ($self->{idle} == 1) { $self->RunHighScores('auto'); }
+  elsif ($self->{idle} == 2) { $self->RunCredits('demo'); }
+  elsif ($self->{idle} == 3) { $self->{idle} = 0; return 'demo'; }
+  return '';
+}
+
+sub Run {
+  my $self = shift;
+  my ($y, $yinc, $idle);
+
+  $self->ResetGame();
+  $::ScoreFont->use();
+  ($y, $yinc) = ($::ScreenHeight + 15, 20);
+  $::Background->print( 10, $y += $yinc, "Pang Zero $::Version (C) 2006 by UPi (upi\@sourceforge.net)" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
+  $::Background->print( 10, $y += $yinc, "Use cursor keys to navigate menu, Enter to select" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
+  $::Background->print( 10, $y += $yinc, "P pauses the game, Esc quits" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
+  $::Background->blit(0, $::App, 0);
+  
+  $::MenuFont->use();
+  push @::GameObjects, (new FpsIndicator);
+  $self->SetGameSpeed();
+  $::GamePause = 0;
+
+  ($y, $yinc) = (90, 40);
+
+  $self->{menuItems} = [
+    new MenuItem( 100, $y += $yinc, "Start Game" ),
+    new MenuItem( 100, $y += $yinc, "Options", "Various game settings" ),
+    new MenuItem( 100, $y += $yinc, "Setup players", "Set the number of players, setup keys and joysticks" ),
+    new MenuItem( 100, $y += $yinc, "Help", "How to play the game, demo of special balls" ),
+    new MenuItem( 100, $y += $yinc, "Credits", "You might be wondering: Who has created Pang Zero?", "Wonder no more." ),
+    new MenuItem( 100, $y += $yinc, "High Scores", "Hall of Fame." ),
+    new MenuItem( 100, $y += $yinc, "Exit Game", "Press Enter to exit the game" ),
+  ];
+
+  $self->{title} = new MenuItem( 300,  60, "PANG ZERO" );
+  $self->{title}->{filled} = 1;
+  $self->{title}->{fillcolor} = new SDL::Color(-b=>255, -g=>128);
+  $self->{title}->Center();
+
+  push @::GameObjects, (
+    &Ball::Spawn($::BallDesc[8], -1, 1),
+    &Ball::Spawn($::BallDesc[0], -1, 0),
+    &Ball::Spawn($::BallDesc{super0}, -1, 1),
+    &Ball::Spawn($::BallDesc[2], -1, 0),
+    &Ball::Spawn($::BallDesc[5], -1, 1),
+    $self->{title},
+    @{$self->{menuItems}},
+  );
+
+  $self->SetCurrentItemIndex( 0 );
+  &GameTimer::ResetTimer();
+
+  while (1) {
+    $self->MenuAdvance();
+    $self->Exit() if $self->{abortgame};
+    $self->HandleUpDownKeys();
+    last if $self->{result};
+    if ($::MenuEvents{BUTTON}) {
+      if ($self->{currentItemIndex} == 0) {
+        $self->RunGameMenu();
+      } elsif ($self->{currentItemIndex} == 1) {
+        $self->RunOptionsMenu();
+      } elsif ($self->{currentItemIndex} == 2) {
+        $self->RunControlsMenu();
+      } elsif ($self->{currentItemIndex} == 3) {
+        $self->RunTutorialMenu;
+      } elsif ($self->{currentItemIndex} == 4) {
+        $self->RunCredits();
+      } elsif ($self->{currentItemIndex} == 5) {
+        $self->RunHighScores();
+      }
+      $self->Exit() if $self->{currentItemIndex} == 6;
+    }
+    if (%::Events) {
+      $idle = 0;
+    } else {
+      if (++$idle > 1000) { $self->{result} = $self->OnMenuIdle(); $idle = 0; }
+    }
+  }
+  
+  $::ScoreFont->use();
+  return $self->{result};
+}
+
+
+##########################################################################
+package main;
+##########################################################################
+
+
+sub SaveScreenshot {
+  my $i = 0;
+  my $filename;
+  do { $filename = sprintf("screenshot%03d.bmp", $i); ++$i } while (-f $filename);
+  $App->save_bmp($filename);
+}
+
+sub Pause {
+  my $pausedSurface = new SDL::Surface(-name => "$DataDir/paused.png");
+  my $event = new SDL::Event;
+
+  $pausedSurface->blit(0, $App, new SDL::Rect(-x => ($PhysicalScreenWidth - $pausedSurface->width) / 2, -y => $PhysicalScreenHeight / 2 - 100));
+  $App->sync();
+  $::Keys = (); $::Events = ();
+  while (1) { # Paused, wait for keypress
+    $event->wait();
+    last if $event->type() == SDL_KEYDOWN and $event->key_sym == SDLK_p;
+    if ($event->type() == SDL_KEYDOWN and $event->key_sym == SDLK_ESCAPE) { $Game->{abortgame} = 1; last; }
+    $Game->Exit() if $event->type() == SDL_QUIT;
+  }
+  $Background->blit(0, $App, 0);
+  &GameTimer::ResetTimer();
+}
+
+sub HandleEvents {
+  my ($readBothJoystickAxes) = @_;
+  my ($event, $type);
+
+  $event = new SDL::Event;
+  while (1) {
+    last unless $event->poll();
+    $type = $event->type();
+
+    if ($type == SDL_QUIT) {
+      $Game->Exit();
+    }
+    elsif ($type == SDL_KEYDOWN) {
+      my $keypressed = $event->key_sym;
+      if ($keypressed == SDLK_ESCAPE) {
+        $Game->{abortgame} = 1;
+      } elsif ($keypressed == SDLK_F1) {
+        &SaveScreenshot();
+      } elsif ($keypressed == SDLK_p and not $UnicodeMode) {
+        &Pause();
+      } else {
+        $Keys{$keypressed} = 1;
+        $Events{$keypressed} = 1;
+        $MenuEvents{UP} = 1 if $keypressed == SDLK_UP();
+        $MenuEvents{DOWN} = 1 if $keypressed == SDLK_DOWN();
+        $MenuEvents{LEFT} = 1 if $keypressed == SDLK_LEFT();
+        $MenuEvents{RIGHT} = 1 if $keypressed == SDLK_RIGHT();
+        $MenuEvents{BUTTON} = 1 if $keypressed == SDLK_RETURN();
+        $LastUnicodeKey = $event->key_unicode() if $UnicodeMode;
+      }
+    }
+    elsif ($type == SDL_KEYUP) {
+      my $keypressed = $event->key_sym;
+      $Keys{$keypressed} = 0;
+    }
+  }
+
+  &Joystick::ReadJoystick($readBothJoystickAxes);
+}
+
+sub DoMenu {
+  my $oldScreenHeight = $ScreenHeight;
+  my $oldScreenWidth = $ScreenWidth;
+  $ScreenWidth = $PhysicalScreenWidth - $ScreenMargin * 2;
+  $ScreenWidth = int($ScreenWidth / 32) * 32;
+
+  $Game = new Menu;
+  my $retval = $Game->Run();
+  &SaveConfig();
+
+  $ScreenWidth = $oldScreenWidth;
+  $ScreenHeight = $oldScreenHeight;
+
+  return $retval;
+}
+
+sub DoDemo {
+  my $messages = $Game->{messages} = {
+    1 => "Use harpoons to pop the balloons",
+    160 => "Pop them, and they split in two",
+    300 => "Pop them again and again",
+    530 => "Popping the smallest ballons makes them disappear",
+    630 => "The green Super Ball gives you a lot of free time",
+    720 => "Use this time wisely!",
+    1150 => "Making a lot of small balls is dangerous! Observe...",
+    1600 => "Don't let the balloons touch you!",
+    1708 => "Dying gives you some free time.", 
+    1900 => "So does shooting the flashing balloons.",
+    2370 => "The yellow Super Ball destroys every balloon",
+    2650 => "And now... THE SPECIAL BALL DEMO!",
+    2950 => "The Bouncy Ball bounces twice as high as normal balls.",
+    3620 => "See?",
+    4222 => "The Hexa Ball is weightless and travels in a straight line.",
+    4500 => "So does its offspring.",
+    5210 => "The blue Water Ball splits every time it bounces.",
+    5900 => "This can cause a tide of small balls!",
+    6630 => "The Earthquake Ball will really shake you up.",
+    7100 => "Its offspring is not as dangerous, but still annoying.",
+    7800 => "Behold, the Death Ball. It cannot be killed!!!",
+    8120 => "No, really, it can't! In fact, shooting it makes it multiply.",
+    8220 => "If you avoid it for 20 secs, Deathballs will get bored and go away.",
+    8320 => "Also, the yellow Super Ball will destroy the Deathballs for you.",
+    8800 => "Shooting it too much will lead to the Deathball Meltdown.",
+    9550 => "Last but not least: here's the Seeker Ball!",
+    9900 => "This ball will stalk you forever.",
+    10100 => "Whew! This concludes the Special Ball Demo. Have fun playing!",
+  };
+  my $record = 0 x 23 . 1 x 18 . 0 x 19 . 2 x 7 . 0 x 31 . 4 x 1 . 0 x 44 . 2 x 43 . 0 x 7 . 4 x 1 . 0 x 22 . 1 x 10 . 0 x 17 . 2 x 38 . 0 x 16 . 2 x 22 . 0 x 42 . 4 x 1 . 0 x 54 . 1 x 43 . 0 x 2 . 4 x 1 . 0 x 28 . 1 x 27 . 0 x 8 . 4 x 1 . 0 x 98 . 2 x 19 . 0 x 11 . 4 x 1 . 0 x 27 . 1 x 24 . 5 x 1 . 1 x 1 . 0 x 17 . 1 x 9 . 0 x 2 . 4 x 1 . 0 x 51 . 2 x 19 . 0 x 14 . 4 x 1 . 0 x 48 . 1 x 14 . 0 x 2 . 4 x 1 . 0 x 51 . 1 x 8 . 0 x 25 . 4 x 1 . 0 x 49 . 2 x 25 . 0 x 3 . 4 x 1 . 0 x 53 . 1 x 12 . 0 x 9 . 4 x 1 . 0 x 101 . 1 x 9 . 0 x 4 . 4 x 1 . 0 x 68 . 1 x 7 . 5 x 1 . 0 x 75 . 2 x 14 . 0 x 2 . 4 x 1 . 0 x 64 . 2 x 38 . 0 x 3 . 4 x 1 . 0 x 13 . 2 x 13 . 0 x 25 . 2 x 25 . 0 x 5 . 4 x 1 . 0 x 54 . 4 x 1 . 0 x 69 . 1 x 3 . 0 x 15 . 4 x 1 . 0 x 19 . 2 x 17 . 0 x 94 . 2 x 28 . 0 x 27 . 2 x 52 . 0 x 22 . 4 x 1 . 0 x 34 . 1 x 28 . 0 x 34 . 1 x 29 . 0 x 24 . 4 x 1 . 0 x 80 . 1 x 15 . 0 x 116 . 1 x 10 . 5 x 1 . 1 x 1 . 0 x 808 . 2 x 35 . 0 x 16 . 4 x 1 . 0 x 55 . 1 x 46 . 5 x 1 . 1 x 2 . 0 x 368 . 8 x 1 . 0 x 487 . 1 x 27 . 0 x 48 . 2 x 8 . 6 x 1 . 2 x 7 . 0 x 7 . 2 x 18 . 6 x 1 . 2 x 11 . 0 x 119 . 1 x 1 . 0 x 167 . 8 x 1 . 0 x 1177 . 2 x 24 . 0 x 121 . 2 x 22 . 0 x 2 . 4 x 1 . 0 x 31 . 2 x 15 . 0 x 9 . 2 x 4 . 6 x 1 . 2 x 5 . 0 x 8 . 2 x 10 . 0 x 69 . 8 x 1 . 0 x 338 . 1 x 87 . 0 x 152 . 2 x 52 . 0 x 112 . 1 x 27 . 0 x 2 . 4 x 1 . 0 x 71 . 1 x 41 . 0 x 4 . 4 x 1 . 0 x 65 . 2 x 24 . 0 x 209 . 8 x 1 . 0 x 579 . 1 x 3 . 0 x 13 . 2 x 3 . 0 x 14 . 4 x 1 . 0 x 58 . 2 x 28 . 0 x 9 . 4 x 1 . 0 x 93 . 2 x 37 . 0 x 26 . 2 x 11 . 0 x 22 . 2 x 9 . 6 x 1 . 2 x 6 . 6 x 1 . 2 x 7 . 6 x 1 . 2 x 5 . 6 x 1 . 2 x 7 . 6 x 1 . 2 x 16 . 6 x 1 . 2 x 9 . 6 x 1 . 2 x 20 . 1 x 7 . 0 x 21 . 2 x 13 . 1 x 3 . 5 x 1 . 1 x 8 . 5 x 1 . 1 x 6 . 5 x 1 . 1 x 6 . 5 x 1 . 1 x 35 . 0 x 6 . 5 x 1 . 1 x 6 . 0 x 11 . 2 x 12 . 6 x 1 . 2 x 8 . 6 x 1 . 1 x 6 . 5 x 1 . 1 x 3 . 0 x 3 . 4 x 1 . 1 x 3 . 0 x 3 . 5 x 1 . 1 x 4 . 0 x 15 . 1 x 2 . 5 x 1 . 1 x 4 . 0 x 4 . 5 x 1 . 1 x 7 . 5 x 1 . 1 x 4 . 0 x 5 . 1 x 6 . 0 x 2 . 4 x 1 . 1 x 4 . 0 x 4 . 4 x 1 . 0 x 3 . 1 x 4 . 0 x 3 . 4 x 1 . 0 x 10 . 2 x 14 . 6 x 1 . 2 x 2 . 1 x 5 . 5 x 1 . 1 x 6 . 5 x 1 . 1 x 5 . 5 x 1 . 1 x 2 . 0 x 3 . 4 x 1 . 1 x 3 . 0 x 3 . 4 x 1 . 1 x 3 . 0 x 2 . 1 x 2 . 5 x 1 . 1 x 4 . 5 x 1 . 1 x 6 . 5 x 1 . 1 x 7 . 5 x 1 . 1 x 7 . 0 x 2 . 2 x 4 . 6 x 1 . 2 x 4 . 0 x 2 . 2 x 2 . 6 x 1 . 2 x 6 . 6 x 1 . 2 x 7 . 1 x 5 . 5 x 1 . 1 x 1 . 0 x 5 . 2 x 6 . 6 x 1 . 2 x 2 . 0 x 4 . 1 x 3 . 5 x 1 . 1 x 1 . 0 x 8 . 2 x 4 . 6 x 1 . 2 x 1 . 0 x 3 . 1 x 4 . 0 x 7 . 2 x 6 . 6 x 1 . 2 x 8 . 6 x 1 . 2 x 6 . 6 x 1 . 2 x 3 . 0 x 3 . 1 x 3 . 0 x 10 . 2 x 7 . 0 x 2 . 1 x 1 . 5 x 1 . 1 x 5 . 0 x 2 . 4 x 1 . 1 x 2 . 0 x 4 . 4 x 1 . 0 x 2 . 1 x 2 . 0 x 3 . 1 x 1 . 5 x 1 . 1 x 5 . 5 x 1 . 1 x 3 . 0 x 4 . 5 x 1 . 1 x 1 . 0 x 4 . 4 x 1 . 1 x 2 . 0 x 4 . 4 x 1 . 1 x 1 . 0 x 6 . 4 x 1 . 1 x 1 . 0 x 5 . 1 x 1 . 5 x 1 . 1 x 2 . 0 x 3 . 1 x 1 . 5 x 1 . 1 x 6 . 5 x 1 . 1 x 7 . 5 x 1 . 1 x 6 . 5 x 1 . 1 x 6 . 5 x 1 . 1 x 7 . 0 x 12 . 2 x 7 . 0 x 2 . 4 x 1 . 2 x 2 . 0 x 4 . 4 x 1 . 0 x 135 . 8 x 1 . 0 x 252 . 1 x 57 . 0 x 199 . 2 x 37 . 0 x 3 . 1 x 1 . 5 x 1 . 1 x 29 . 0 x 21 . 1 x 30 . 0 x 37 . 4 x 1 . 0 x 77 . 1 x 17 . 0 x 4 . 2 x 126 . 3 x 1 . 1 x 52 . 5 x 1 . 1 x 64 . 0 x 39 . 8 x 1 . 0 x 140;
+  my $rand = [2199.02,1.12,0.11,1.24,0.11,1.21,0.33,0.19,0.16,0.12,0.07,0.28,0.68];
+
+  &::SaveConfig();
+  $Game = new DemoPlaybackGame( 1, 3, $record, $rand, $messages );
+  $Game->Run();
+  &::LoadConfig();
+  $Game->RestoreGameSettings();
+}
+
+sub DoRecordDemo {
+  my ($numguys, $difficulty) = ($NumGuys, $DifficultyLevelIndex);
+
+  $NumGuys = 1;
+  &SetDifficultyLevel(3);
+  $Game = new DemoRecordGame;
+  $Game->Run();
+  print "\n\$record = '", $Game->{record}, "';\n";
+  print "\$rand = [", join( ', ', @{$Game->{rand}} ), "];\n\n";
+  $NumGuys = $numguys;
+  &SetDifficultyLevel($difficulty);
+}
+
+
+##########################################################################
+# MAIN PROGRAM STARTS HERE
+##########################################################################
+
+sub Initialize {
+
+  eval { SDL::Init(SDL_INIT_EVERYTHING()); };
+  eval { SDL::Init(SDL::INIT_EVERYTHING()); } if $@;  # This is a workaround for SDL_perl 1.2.20
+  die "Unable to initialize SDL: $@" if $@;
+
+  &FindDataDir();
+  &LoadConfig();
+  print "Data directory is at '$DataDir'\n";
+  my $sdlFlags;
+  if (&IsMicrosoftWindows()) {
+    $sdlFlags = SDL_ANYFORMAT;
+  } else {
+    $sdlFlags = SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF | SDL_ANYFORMAT;
+  }
+
+  ($PhysicalScreenWidth, $PhysicalScreenHeight) = &FindVideoMode();
+  #($PhysicalScreenWidth, $PhysicalScreenHeight) = (848, 480); $FullScreen = 0;
+
+  $App = new SDL::App
+    -flags => $sdlFlags,
+    -title => "Pang Zero $::Version",
+    -icon => "$DataDir/icon.png",
+    -width => $PhysicalScreenWidth,
+    -height => $PhysicalScreenHeight,
+    -fullscreen => $FullScreen,
+  ;
+  eval( 'use SDL::Tool::Graphic; $RotoZoomer = new SDL::Tool::Graphic; $::SmoothRotoZoom = 0;' );  # Detect if zoom / rotozoom works
+
+  &SDL::ShowCursor(0);
+
+  $Background = new SDL::Surface(
+    -name =>'',
+    -flags=> ( &IsMicrosoftWindows ? SDL_SWSURFACE : SDL_HWSURFACE ),
+    -width => $App->width,
+    -height => $App->height,
+    -depth => 16,
+    -Amask => '0 but true');
+  $Background->display_format;
+  $ScoreFont = new SDL::Font("$DataDir/brandybun3.png");
+  $MenuFont = new SDL::Font("$::DataDir/font2.png");
+  $GlossyFont = new SDL::Font("$::DataDir/glossyfont.png");
+
+  &LoadSurfaces();
+  &LoadSounds();
+  &Joystick::InitJoystick();
+}
+
+sub MainLoop {
+  my $menuResult = &DoMenu();
+  if ($menuResult eq 'demo') {
+    &DoDemo();
+    return;
+  }
+  
+  # $Game = new DemoRecordGame;
+  if ($menuResult eq 'challenge') {
+    $Game = new ChallengeGame;
+  } else {
+    $Game = new PanicGame;
+  }
+  @UnsavedHighScores = ();
+  $Game->Run();
+  
+  bless $Game, 'Menu';
+  $Game->{abortgame} = 0;
+  { my @gameObjects = @GameObjects; foreach (@gameObjects) { $_->Delete() if ref $_ eq 'Guy'; } }
+  $Background->blit(0, $App, 0);
+  $MenuFont->use();
+  &MergeUnsavedHighScores($menuResult eq 'challenge' ? 'Cha' : 'Pan');
+return;
+
+  my ($filename, $i) = ('', 1);
+  do { $filename = sprintf("record%03d.txt", $i); ++$i } while (-f $filename);
+  open RECORD, ">$filename";
+  print RECORD "NumGuys = $NumGuys;\nDifficultyLevelIndex = $DifficultyLevelIndex;\nrecord = '$Game->{record}';\n",
+    "DeathBallsEnabled = $DeathBallsEnabled;\nEarthquakeBallsEnabled = $EarthquakeBallsEnabled;\n",
+    "WaterBallsEnabled = $WaterBallsEnabled;\nSeekerBallsEnabled = $SeekerBallsEnabled;\n",
+    'rand = [', join(',', @{$Game->{rand}}), "];\n\n";
+  close RECORD;
+  
+  $Game = new DemoPlaybackGame($NumGuys, $DifficultyLevelIndex, $Game->{record}, $Game->{rand}, {});
+  $Game->Run();
+  $Game->RestoreGameSettings();
+}
+
+sub ShowErrorMessage {
+  my ($message) = @_;
+  
+  eval("SDL::Quit"); warn $@ if $@;
+  $message = "Pang Zero $::Version died:\n$message";
+  if (&IsMicrosoftWindows()) {
+    eval( '
+      use Win32;
+      Win32::MsgBox($message, MB_ICONEXCLAMATION, "Pang Zero error");
+    ' );
+    return;
+  } elsif ($ENV{'DISPLAY'}) {
+    $message =~ s/\"/\\"/g;
+    my @tryCommands = (
+      "kdialog --msgbox \"$message\"",
+      "gmessage -center \"$message\"",
+      "xmessage -center \"$message\"",
+    );
+    foreach (@tryCommands) {
+      `$_`;
+      return if $? == 0;
+    }
+  }
+}
+
+sub ShowWebPage {
+  my ($url) = @_;
+  
+  eval("SDL::Quit"); warn $@ if $@;
+  if (&IsMicrosoftWindows()) {
+    my $ws = "$DataDir/website.html";
+    $ws =~ s/\//\\\\/g;
+    exec 'cmd', '/c', $ws;
+    exit;
+  } elsif ($ENV{'DISPLAY'}) {
+    my @tryCommands = (
+      "gnome-open $url",
+      "mozilla-firefox $url",
+      "firefox $url",
+      "mozilla $url",
+      "konqueror $url",
+    );
+    foreach (@tryCommands) {
+      `$_`;
+      return if $? == 0;
+    }
+  } else {
+    print "Visit $url for more info about Pang Zero $::Version\n";
+  }
+}
+
+
+#
+# Program Entry Point
+#
+
+eval {
+  &Initialize();
+  #&DoDemo() while 1;
+  #while (1) { &DoRecordDemo(); $::App->delay(2000); }
+  while (1) { &MainLoop(); }
+};
+if ($@) {
+  my $errorMessage = $@;
+  &ShowErrorMessage($errorMessage);
+  die $errorMessage;
+}
+
