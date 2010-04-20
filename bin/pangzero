@@ -69,17 +69,27 @@ The parts of the file are organized like this:
 
 
 use strict;
+use warnings;
+
 use SDL;
 use SDL::App;
-use SDL::Event;
 use SDL::Surface;
-use SDL::Timer;
-use SDL::Palette;
-use SDL::Sound;
+use SDL::Video;
+use SDL::Event;
+use SDL::Events;
+use SDL::Color;
+use SDL::Cursor;
 use SDL::Mixer;
-use SDL::Font;
-use Carp;
+use SDL::Mixer::Samples;
+use SDL::Mixer::Channels;
+use SDL::Mixer::Music;
+use SDL::Mixer::MixChunk;
+use SDL::Mixer::MixMusic;
+use SDL::Joystick;
+use SDL::Mouse;
+use SDL::Image;
 
+use Carp;
 
 # SDL objects
 
