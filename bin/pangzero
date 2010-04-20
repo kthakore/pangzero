@@ -167,11 +167,11 @@ for (my $i=0; $i<=$#Players; ++$i) {
 }
 
 my (%n0, %n1, %n2, %n3, %n4);
-%n0 = ('popIndex' => 0, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 128, -height => 106));
-%n1 = ('popIndex' => 1, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  96, -height =>  80));
-%n2 = ('popIndex' => 2, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  64, -height =>  53));
-%n3 = ('popIndex' => 3, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  32, -height =>  28));
-%n4 = ('popIndex' => 4, 'rect' => new SDL::Rect(-x => 0, -y => 0, -width =>  16, -height =>  15));
+%n0 = ('popIndex' => 0, 'rect' => new SDL::Rect(0, 0, 128, 106));
+%n1 = ('popIndex' => 1, 'rect' => new SDL::Rect(0, 0,  96,  80));
+%n2 = ('popIndex' => 2, 'rect' => new SDL::Rect(0, 0,  64,  53));
+%n3 = ('popIndex' => 3, 'rect' => new SDL::Rect(0, 0,  32,  28));
+%n4 = ('popIndex' => 4, 'rect' => new SDL::Rect(0, 0,  16,  15));
 
 @BallDesc = (
 # Normal balls (n0 .. n4)
@@ -186,12 +186,12 @@ my (%n0, %n1, %n2, %n3, %n4);
   { 'name' => 'b2', 'class' => 'Ball', 'score' =>   500, 'spawndelay' => 0.1, 'speedY' => 4.2, %n4, 'surface' => 'bouncy4' },
 # Hexas (h0..h2)
   { 'name' => 'h0', 'class' => 'Hexa', 'score' =>  1500, 'spawndelay' => 0.5, 'popIndex' => 5, 'hexa' => 1,
-    'surface' => 'hexa0', 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 64, -height => 52), 'nextgen' => 'h1', },
+    'surface' => 'hexa0', 'rect' => new SDL::Rect(0, 0, 64, 52), 'nextgen' => 'h1', },
   { 'name' => 'h1', 'class' => 'Hexa', 'score' =>  1000, 'spawndelay' => 0.2, 'popIndex' => 6, 'hexa' => 1,
-    'surface' => 'hexa1', 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 32, -height => 28), 'nextgen' => 'h2', },
+    'surface' => 'hexa1', 'rect' => new SDL::Rect(0, 0, 32, 28), 'nextgen' => 'h2', },
   { 'name' => 'h2', 'class' => 'Hexa', 'score' =>   500, 'spawndelay' => 0.1, 'popIndex' => 7, 'hexa' => 1,
-    'surface' => 'hexa2', 'rect' => new SDL::Rect(-x => 0, -y => 0, -width => 16, -height => 14),
-    'magicrect' => new SDL::Rect(-x => 48, -y => 0, -width => 16, -height => 14), },
+    'surface' => 'hexa2', 'rect' => new SDL::Rect(0, 0, 16, 14),
+    'magicrect' => new SDL::Rect(48, 0, 16, 14), },
 # Water ball
   { 'name' => 'w1', 'class' => 'WaterBall', 'score' =>  1500, 'spawndelay' => 0.4, 'speedY' => 5.7, %n1, 'surface' => 'blue1', 'nextgen' => 'w2', },
   { 'name' => 'w2', 'class' => 'WaterBall', 'score' =>  1000, 'spawndelay' => 0.2, 'speedY' => 5,   %n2, 'surface' => 'blue2', 'nextgen' => 'w3', },
@@ -231,8 +231,8 @@ my (%n0, %n1, %n2, %n3, %n4);
 );
 {
   foreach my $ballDesc (@BallDesc) {
-    $ballDesc->{width} = $ballDesc->{rect}->width();
-    $ballDesc->{height} = $ballDesc->{rect}->height();
+    $ballDesc->{width}  = $ballDesc->{rect}->w();
+    $ballDesc->{height} = $ballDesc->{rect}->h();
     $BallDesc{$ballDesc->{name}} = $ballDesc;
   }
   foreach my $ballDesc (@BallDesc) {
@@ -725,7 +725,7 @@ package Ball;
 
 @Ball::ISA = qw(GameObject);
 $Ball::Gravity = 0.05;
-$Ball::MagicBallRect = new SDL::Rect(-x => 80, -y => 0, -width => 16, -height => 15);
+$Ball::MagicBallRect = new SDL::Rect(80, 0, 16, 15);
 
 for (my $i=0; $i <= $#::BallDesc; ++$i) {
   my $desc = $::BallDesc[$i];
@@ -1137,13 +1137,13 @@ sub Draw {
   $self->SUPER::Draw();
   $guySurface = $self->{target}->{player}->{guySurface};
   if ($self->{w} <= 32) {
-    $srcrect = new SDL::Rect(-width => 16, -height => 16, -x =>320, -y => 176);
+    $srcrect = new SDL::Rect(320, 176, 16, 16);
   } else {
-    $srcrect = new SDL::Rect(-width => 32, -height => 32, -x =>320, -y => 128);
+    $srcrect = new SDL::Rect(320, 128, 32, 32);
   }
   $dstrect = new SDL::Rect(
-    -x => $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->width()) / 2, 
-    -y => $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->height()) / 2 + 2);
+    -x => $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->w()) / 2, 
+    -y => $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->h()) / 2 + 2);
   $guySurface->blit($srcrect, $::App, $dstrect);
 }
 
@@ -1217,7 +1217,7 @@ sub Pop {
   $bonusdrop = new BonusDrop($self);
   @collectedSubs = ( \&OnCollectedLife, \&OnCollectedScore, \&OnCollectedScore, \&OnCollectedInvulnerability, \&OnCollectedInvulnerability );
   if ($::Game->Rand(2 * scalar @collectedSubs) < scalar @collectedSubs) {
-    $bonusdrop->{desc} = { 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>0, -y=>0), };
+    $bonusdrop->{desc} = { 'srcRect' => new SDL::Rect(0, 0, 32, 32), };
     $bonusdrop->SetOnCollectedSub( $collectedSubs[int $::Game->Rand(scalar @collectedSubs)] );
   }
   push @::GameObjects, $bonusdrop;
@@ -1342,10 +1342,10 @@ sub NormalAdvance {
   my ($self) = @_;
   
   $self->{speedY} = -$self->{speedY};
-  $self->{y} = $::ScreenHeight - $self->{h} - $self->{y};
+  $self->{y}      = $::ScreenHeight - $self->{h} - $self->{y};
   $self->SUPER::NormalAdvance();
   $self->{speedY} = -$self->{speedY};
-  $self->{y} = $::ScreenHeight - $self->{h} - $self->{y};
+  $self->{y}      = $::ScreenHeight - $self->{h} - $self->{y};
 }
 
 
@@ -1403,10 +1403,10 @@ sub Draw {
   $phase = 3 if $phase > 3;
 
   $srcrect = new SDL::Rect(
-    -x => $self->{desc}->{srcx} + $phase * $self->{w},
-    -y => $self->{desc}->{srcy},
-    -width => $self->{w},
-    -height => $self->{h} );
+    $self->{desc}->{srcx} + $phase * $self->{w},
+    $self->{desc}->{srcy},
+    $self->{w},
+    $self->{h} );
   $self->{surface}->blit( $srcrect, $::App, $self->{rect} );
 }
 
@@ -1505,10 +1505,10 @@ package BonusDrop;
 use vars qw(@BonusDesc);
 
 @BonusDesc = (
-  { 'weaponClass' => 'MachineGun', 'bonusDelay' => 1500, 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>0 , -y=>64), },
-  { 'weaponClass' => 'HalfCutter', 'bonusDelay' => 1000, 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>32, -y=>64), },
-  { 'weaponClass' => 'PowerWire',  'bonusDelay' => 3000, 'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>32, -y=>96), },
-  { 'onCollectedSub' => \&OnCollectedSlowEffect,         'srcRect' => new SDL::Rect(-width=>32, -height=>32, -x=>32, -y=>0), },
+  { 'weaponClass' => 'MachineGun', 'bonusDelay' => 1500, 'srcRect' => new SDL::Rect( 0, 64, 32, 32), },
+  { 'weaponClass' => 'HalfCutter', 'bonusDelay' => 1000, 'srcRect' => new SDL::Rect(32, 64, 32, 32), },
+  { 'weaponClass' => 'PowerWire',  'bonusDelay' => 3000, 'srcRect' => new SDL::Rect(32, 96, 32, 32), },
+  { 'onCollectedSub' => \&OnCollectedSlowEffect,         'srcRect' => new SDL::Rect(32,  0, 32, 32), },
 );
 
 
@@ -1833,7 +1833,7 @@ sub Draw {
     $srcx = ($self->{dir} > 0 ? 0 : 64);
     $srcy = 128;
   }
-  $srcrect = new SDL::Rect( -width => $srcw, -height => $srch, -x => $srcx, -y => $srcy );
+  $srcrect = new SDL::Rect($srcx, $srcy, $srcw, $srch );
   $self->TransferRect();
   $surface->blit($srcrect, $::App, $self->{rect});
 }
@@ -1942,11 +1942,10 @@ sub Draw {
   my ($x, $y, $h, $maxh, $dstrect, $srcrect);
 
   $self->TransferRect();
-  $y = $self->{y};
-  $dstrect = new SDL::Rect( -w => $self->{w}, -x => $self->{x} + $::ScreenMargin );
-  $srcrect = new SDL::Rect( -w => $self->{w},
-    -x => (0, 64, 32, 96)[ $self->GetAnimPhase() ], -y => 0 );
-  $maxh = 160;
+  $y       = $self->{y};
+  $dstrect = new SDL::Rect( $self->{x} + $::ScreenMargin, 0, $self->{w}, 0 );
+  $srcrect = new SDL::Rect( (0, 64, 32, 96)[ $self->GetAnimPhase() ], 0, $self->{w}, 0 );
+  $maxh    = 160;
 
   # The harpoon needs to be drawn from tile pieces.
   # $y iterates from $self->{y} to $::ScreenHeight
@@ -1976,9 +1975,9 @@ package MachineGun;
 use vars qw(@SrcRects);
 
 @SrcRects = (
-  new SDL::Rect( -x=>0, -y=>160, -w=>32, -h=>32 ),
-  new SDL::Rect( -x=>32, -y=>160, -w=>32, -h=>32 ),
-  new SDL::Rect( -x=>64, -y=>160, -w=>32, -h=>32 ),
+  new SDL::Rect(  0, 160, 32, 32 ),
+  new SDL::Rect( 32, 160, 32, 32 ),
+  new SDL::Rect( 64, 160, 32, 32 ),
 );
 
 sub Create {
@@ -2170,11 +2169,10 @@ sub Draw {
     -width => 64, -height => 64 );
   $self->TransferRect();
   if ($::RotoZoomer) {
-    my $roto = new SDL::Surface( -name =>'',
-        -flags=>::SDL_SWSURFACE(), -width => 64, -height => 64, -depth => 32);
+    my $roto = new SDL::Surface( SDL_SWSURFACE(), 64, 64, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
     $self->{surface}->blit( $srcrect, $roto, new SDL::Rect );
     $::RotoZoomer->rotoZoom( $roto, $self->{anim} * 5, 1, $::SmoothRotoZoom );
-    $self->{rect}->x( $self->{rect}->x - ($roto->width - 64) / 2 );
+    $self->{rect}->x( $self->{rect}->x - ($roto->width  - 64) / 2 );
     $self->{rect}->y( $self->{rect}->y - ($roto->height - 64) / 2 );
     $roto->blit( 0, $::App, $self->{rect} );
     return;
@@ -4865,8 +4863,7 @@ sub DoRecordDemo {
 
 sub Initialize {
 
-  eval { SDL::Init(SDL_INIT_EVERYTHING()); };
-  eval { SDL::Init(SDL::INIT_EVERYTHING()); } if $@;  # This is a workaround for SDL_perl 1.2.20
+  eval { SDL::init(SDL_INIT_EVERYTHING()); };
   die "Unable to initialize SDL: $@" if $@;
 
   &FindDataDir();
@@ -4892,18 +4889,12 @@ sub Initialize {
   ;
   eval( 'use SDL::Tool::Graphic; $RotoZoomer = new SDL::Tool::Graphic; $::SmoothRotoZoom = 0;' );  # Detect if zoom / rotozoom works
 
-  &SDL::ShowCursor(0);
+  &SDL::Mouse::show_cursor(0);
 
-  $Background = new SDL::Surface(
-    -name =>'',
-    -flags=> ( &IsMicrosoftWindows ? SDL_SWSURFACE : SDL_HWSURFACE ),
-    -width => $App->width,
-    -height => $App->height,
-    -depth => 16,
-    -Amask => '0 but true');
-  $Background->display_format;
-  $ScoreFont = new SDL::Font("$DataDir/brandybun3.png");
-  $MenuFont = new SDL::Font("$::DataDir/font2.png");
+  $Background = SDL::Surface->new(( &IsMicrosoftWindows ? SDL_SWSURFACE : SDL_HWSURFACE ), $App->w, $App->h, 16);
+  #$Background->display_format;
+  $ScoreFont  = new SDL::Font("$DataDir/brandybun3.png");
+  $MenuFont   = new SDL::Font("$::DataDir/font2.png");
   $GlossyFont = new SDL::Font("$::DataDir/glossyfont.png");
 
   &LoadSurfaces();
@@ -4952,7 +4943,7 @@ return;
 sub ShowErrorMessage {
   my ($message) = @_;
   
-  eval("SDL::Quit"); warn $@ if $@;
+  eval("SDL::quit"); warn $@ if $@;
   $message = "Pang Zero $::Version died:\n$message";
   if (&IsMicrosoftWindows()) {
     eval( '
@@ -4977,7 +4968,7 @@ sub ShowErrorMessage {
 sub ShowWebPage {
   my ($url) = @_;
   
-  eval("SDL::Quit"); warn $@ if $@;
+  eval("SDL::quit"); warn $@ if $@;
   if (&IsMicrosoftWindows()) {
     my $ws = "$DataDir/website.html";
     $ws =~ s/\//\\\\/g;
