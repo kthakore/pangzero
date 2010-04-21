@@ -74,6 +74,8 @@ use warnings;
 use SDL;
 use SDL::App;
 use SDL::Surface;
+use SDL::Palette;
+use SDL::PixelFormat;
 use SDL::Video;
 use SDL::Event;
 use SDL::Events;
@@ -630,7 +632,7 @@ package GameObject;
 sub new {
   my ($class) = @_;
   my $self = {
-    'rect' => new SDL::Rect( -x => 0, -y => 0, -width => 0, -height => 0 ),
+    'rect' => new SDL::Rect( 0, 0, 0, 0 ),
     'speedX' => 0,
     'speedY' => 0,
     'x' => 0,
@@ -671,8 +673,8 @@ sub TransferRect {
 
   $self->{rect}->x($self->{x} + $::ScreenMargin);
   $self->{rect}->y($self->{y} + $::ScreenMargin);
-  $self->{rect}->width($self->{w});
-  $self->{rect}->height($self->{h});
+  $self->{rect}->w($self->{w});
+  $self->{rect}->h($self->{h});
 }
 
 sub Draw {
@@ -682,21 +684,21 @@ sub Draw {
   if ($self->{draw}) {
     $self->{draw}->($self);
   } else {
-    $::App->fill( $self->{rect}, new SDL::Color(-r => 0x80) );
+    $::App->fill( $self->{rect}, SDL::Color->new(0x80, 0, 0) );
   }
 }
 
 sub SetupCollisions {
   my ($self) = @_;
   
-  $self->{collisionw} = ($self->{collisionw} or $self->{w});
-  $self->{collisionh} = ($self->{collisionh} or $self->{h});
+  $self->{collisionw}        = ($self->{collisionw} or $self->{w});
+  $self->{collisionh}        = ($self->{collisionh} or $self->{h});
   $self->{collisionmarginw1} = ( $self->{w} - $self->{collisionw} ) / 2;
   $self->{collisionmarginw2} = $self->{collisionmarginw1} + $self->{collisionw};
   $self->{collisionmarginh1} = ( $self->{h} - $self->{collisionh} ) / 2;
   $self->{collisionmarginh2} = $self->{collisionmarginh1} + $self->{collisionh};
-  $self->{centerx} = $self->{w} / 2;
-  $self->{centery} = $self->{y} / 2;
+  $self->{centerx}           = $self->{w} / 2;
+  $self->{centery}           = $self->{y} / 2;
 }
 
 sub Collisions {
@@ -705,17 +707,17 @@ sub Collisions {
   # Bounding box detection
   
   unless ($self->{collisionmarginw1} and $other->{collisionmarginw1}) {
-    return 0 if $self->{x} >= $other->{x} + $other->{w};
-    return 0 if $other->{x} >= $self->{x} + $self->{w};
-    return 0 if $self->{y} >= $other->{y} + $other->{h};
-    return 0 if $other->{y} >= $self->{y} + $self->{h};
+    return 0 if $self->{x}  >= $other->{x} + $other->{w};
+    return 0 if $other->{x} >= $self->{x}  + $self->{w};
+    return 0 if $self->{y}  >= $other->{y} + $other->{h};
+    return 0 if $other->{y} >= $self->{y}  + $self->{h};
     return 1;
   }
   
-  return 0 if $self->{x} + $self->{collisionmarginw1} >= $other->{x} + $other->{collisionmarginw2};
-  return 0 if $other->{x} + $other->{collisionmarginw1} >= $self->{x} + $self->{collisionmarginw2};
-  return 0 if $self->{y} + $self->{collisionmarginh1} >= $other->{y} + $other->{collisionmarginh2};
-  return 0 if $other->{y} + $other->{collisionmarginh1} >= $self->{y} + $self->{collisionmarginh2};
+  return 0 if $self->{x}  + $self->{collisionmarginw1}  >= $other->{x} + $other->{collisionmarginw2};
+  return 0 if $other->{x} + $other->{collisionmarginw1} >= $self->{x}  + $self->{collisionmarginw2};
+  return 0 if $self->{y}  + $self->{collisionmarginh1}  >= $other->{y} + $other->{collisionmarginh2};
+  return 0 if $other->{y} + $other->{collisionmarginh1} >= $self->{y}  + $self->{collisionmarginh2};
   return 1;
 }
 
@@ -2610,23 +2612,23 @@ sub LoadSurfaces {
   );
   
   foreach (sort keys %balls) {
-    $BallSurfaces{$_} = new SDL::Surface( -name => "$DataDir/$balls{$_}" );
-    $transparentColor = $BallSurfaces{$_}->pixel(0,0);
-    $BallSurfaces{$_}->set_color_key(SDL_SRCCOLORKEY, $transparentColor );
+    $BallSurfaces{$_} = SDL::Image::load("$DataDir/$balls{$_}");
+    $transparentColor = $BallSurfaces{$_}->get_pixel(0);
+    SDL::Video::set_color_key($BallSurfaces{$_}, SDL_SRCCOLORKEY, $transparentColor );
     # print join(' ', $_, "\t", $transparentColor->r, $transparentColor->g, $transparentColor->b), "\n";
-    $BallSurfaces{$_}->display_format();
-    $BallSurfaces{"dark$_"} = new SDL::Surface( -name => "$DataDir/$balls{$_}" );
-    $BallSurfaces{"dark$_"}->set_color_key(SDL_SRCCOLORKEY, $BallSurfaces{"dark$_"}->pixel(0,0) );
-    $BallSurfaces{"dark$_"}->set_alpha(SDL_SRCALPHA, 128);
-    $BallSurfaces{"dark$_"}->display_format();
+    $BallSurfaces{$_} = SDL::Video::display_format($BallSurfaces{$_});
+    $BallSurfaces{"dark$_"} = SDL::Image::load( "$DataDir/$balls{$_}");
+    SDL::Video::set_color_key($BallSurfaces{"dark$_"}, SDL_SRCCOLORKEY, $BallSurfaces{"dark$_"}->get_pixel(0) );
+    SDL::Video::set_alpha($BallSurfaces{"dark$_"}, SDL_SRCALPHA, 128);
+    $BallSurfaces{"dark$_"} = SDL::Video::display_format($BallSurfaces{"dark$_"});
   }
 
-  $BorderSurface = new SDL::Surface( -name => "$DataDir/border.png" );
-  $RedBorderSurface = new SDL::Surface( -name => "$DataDir/border.png" );
-  $WhiteBorderSurface = new SDL::Surface( -name => "$DataDir/border.png" );
-  $BonusSurface = new SDL::Surface( -name => "$DataDir/bonus.png" );
-  $LevelIndicatorSurface = new SDL::Surface( -name => "$DataDir/level.png" );
-  $LevelIndicatorSurface2 = new SDL::Surface( -name => "$DataDir/level_empty.png" );
+  $BorderSurface          = SDL::Image::load("$DataDir/border.png");
+  $RedBorderSurface       = SDL::Image::load("$DataDir/border.png");
+  $WhiteBorderSurface     = SDL::Image::load("$DataDir/border.png");
+  $BonusSurface           = SDL::Image::load("$DataDir/bonus.png");
+  $LevelIndicatorSurface  = SDL::Image::load("$DataDir/level.png");
+  $LevelIndicatorSurface2 = SDL::Image::load("$DataDir/level_empty.png");
 
   &AlterPalette( $RedBorderSurface, sub { 1; },
     sub { shift @_; my ($h, $s, $i) = &RgbToHsi(@_); return &HsiToRgb( $h - 30, $s, $i * 0.75 + 63); } );
@@ -2640,11 +2642,11 @@ sub MakeGuySurface {
   my ($player) = @_;
   my ($guySurfaceFile, $guySurface, $whiteGuySurface, $harpoonSurface);
   
-  $guySurfaceFile = $DataDir . '/' . $GuyImageFiles[ $player->{imagefileindex} % scalar(@GuyImageFiles) ];
-  $guySurface = new SDL::Surface( -name => ($guySurfaceFile) );
-  $whiteGuySurface = new SDL::Surface( -name => ($guySurfaceFile) );
-  $harpoonSurface = new SDL::Surface( -name => "$DataDir/harpoon.png" );
-  $player->{hue} = $GuyColors[$player->{colorindex}]->[0];
+  $guySurfaceFile       = $DataDir . '/' . $GuyImageFiles[ $player->{imagefileindex} % scalar(@GuyImageFiles) ];
+  $guySurface           = SDL::Image::load($guySurfaceFile);
+  $whiteGuySurface      = SDL::Image::load($guySurfaceFile);
+  $harpoonSurface       = SDL::Image::load("$DataDir/harpoon.png");
+  $player->{hue}        = $GuyColors[$player->{colorindex}]->[0];
   $player->{saturation} = $GuyColors[$player->{colorindex}]->[1];
   
   &AlterPalette($whiteGuySurface, sub {1;}, sub { return (255, 255, 255); } );
@@ -2660,9 +2662,9 @@ sub MakeGuySurface {
       my ($h, $s, $i) = &RgbToHsi(@_);
       return &HsiToRgb($player->{hue}, $player->{saturation} * $s / 256, $i); }
   );
-  $player->{guySurface} = $guySurface;
+  $player->{guySurface}      = $guySurface;
   $player->{whiteGuySurface} = $whiteGuySurface;
-  $player->{harpoonSurface} = $harpoonSurface;
+  $player->{harpoonSurface}  = $harpoonSurface;
 }
 
 sub MakeGuySurfaces {
@@ -2670,7 +2672,7 @@ sub MakeGuySurfaces {
     &MakeGuySurface($player);
   }
   
-  $WhiteHarpoonSurface = new SDL::Surface( -name => "$DataDir/harpoon.png" );
+  $WhiteHarpoonSurface = SDL::Image::load("$DataDir/harpoon.png");
   &AlterPalette($WhiteHarpoonSurface, sub {1;}, sub { return (255, 255, 255); } );
 }
 
@@ -2679,19 +2681,22 @@ sub AlterPalette($$$) {
   my ($r, $g, $b);
   my ($palette, $numColors, $n, $color);
 
-  $palette = $surface->palette();
-  $numColors = SDL::PaletteNColors($palette);
-  for ($n = 1; $n < $numColors; ++$n) {
-    $color = SDL::PaletteColors($palette, $n);
-    ($r, $g, $b) = ( SDL::ColorR($color), SDL::ColorG($color), SDL::ColorB($color) );
+  $palette   = $surface->format->palette();
+  $numColors = ($surface->format->BytesPerPixel == 1) ? $palette->ncolors() : -1;
+  for ($n = 0; $n < $numColors; $n++) {
+    $color       = $palette->color_index($n);
+    ($r, $g, $b) = ( $color->r, $color->g, $color->b );
 
     next unless $filterSub->($n, $r, $g, $b);
     ($r, $g, $b) = $alterSub->($n, $r, $g, $b);
     $r = $g = $b = 4 if ($r == 0 and $g == 0 and $b == 0);
 
-    SDL::PaletteColors($palette, $n, $r, $g, $b);
+	$color->r($r);
+	$color->g($g);
+	$color->b($b);
+    SDL::Video::set_colors($palette, $n, $color);
   }
-  $surface->display_format();
+  $surface = SDL::Video::display_format($surface);
 }
 
 sub RenderBorder {
@@ -4877,16 +4882,17 @@ sub Initialize {
   }
 
   ($PhysicalScreenWidth, $PhysicalScreenHeight) = &FindVideoMode();
-  #($PhysicalScreenWidth, $PhysicalScreenHeight) = (848, 480); $FullScreen = 0;
+  ($PhysicalScreenWidth, $PhysicalScreenHeight) = (640, 480);
 
-  $App = new SDL::App
+  $App = new SDL::App(
     -flags => $sdlFlags,
     -title => "Pang Zero $::Version",
     -icon => "$DataDir/icon.png",
     -width => $PhysicalScreenWidth,
     -height => $PhysicalScreenHeight,
     -fullscreen => $FullScreen,
-  ;
+  );
+  
   eval( 'use SDL::Tool::Graphic; $RotoZoomer = new SDL::Tool::Graphic; $::SmoothRotoZoom = 0;' );  # Detect if zoom / rotozoom works
 
   &SDL::Mouse::show_cursor(0);
@@ -5008,3 +5014,9 @@ if ($@) {
   die $errorMessage;
 }
 
+package SDL::Font;
+
+sub new
+{
+
+}
