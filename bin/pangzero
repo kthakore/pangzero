@@ -2694,7 +2694,7 @@ sub AlterPalette($$$) {
 	$color->r($r);
 	$color->g($g);
 	$color->b($b);
-    SDL::Video::set_colors($palette, $n, $color);
+    SDL::Video::set_colors($surface, 0, $color);
   }
   $surface = SDL::Video::display_format($surface);
 }
@@ -2830,7 +2830,7 @@ sub FindVideoMode {
   # Conclusion: Any resolution where w in [800,900], h > 480 and r in [1.5, 1.8] is good
   
   my ($modes, $mode, @goodModes, $w, $h, $ratio);
-  $modes = SDL::ListModes( 0, SDL_FULLSCREEN|SDL_HWSURFACE );
+  $modes = SDL::ListModes( 0, SDL_HWSURFACE ); #add back fullscreen
   foreach $mode (@{$modes}) {
     $w = SDL::RectW($mode);
     $h = SDL::RectH($mode);
