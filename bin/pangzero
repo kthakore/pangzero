@@ -2734,7 +2734,7 @@ sub RenderBorder {
 
   # Draw top and bottom border
 
-  $srcrect1->width(128); $srcrect1->x(16); $srcrect1->y(0);
+  $srcrect1->w(128); $srcrect1->x(16); $srcrect1->y(0);
   $srcrect2 = new SDL::Rect( 16, 144, 128, 16 );
   for ($xpos = 16; $xpos < $width-16; ) {
     $dstrect->x($xpos);
@@ -2742,30 +2742,30 @@ sub RenderBorder {
     SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
     $dstrect->y($height - 16);
     SDL::Video::blit_surface($borderSurface, $srcrect2, $targetSurface, $dstrect);
-    $xpos += $srcrect1->width();
-    $srcrect1->width(16); $srcrect1->x(128);
-    $srcrect2->width(16); $srcrect2->x(128);
+    $xpos += $srcrect1->w();
+    $srcrect1->w(16); $srcrect1->x(128);
+    $srcrect2->w(16); $srcrect2->x(128);
   }
 
   # Draw left and right border
 
-  $srcrect1->height(128); $srcrect1->y(16); $srcrect1->x(0);
-  $srcrect2->height(128); $srcrect2->y(16); $srcrect2->x(144);
+  $srcrect1->h(128); $srcrect1->y(16); $srcrect1->x(0);
+  $srcrect2->h(128); $srcrect2->y(16); $srcrect2->x(144);
   for ($ypos = 16; $ypos < $height-16; ) {
     $dstrect->x(0);
     $dstrect->y($ypos);
     SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
     $dstrect->x($width - 16);
     SDL::Video::blit_surface($borderSurface, $srcrect2, $targetSurface, $dstrect);
-    $ypos += $srcrect1->height();
-    $srcrect1->height(16); $srcrect1->y(128);
-    $srcrect2->height(16); $srcrect2->y(128);
+    $ypos += $srcrect1->h();
+    $srcrect1->h(16); $srcrect1->y(128);
+    $srcrect2->h(16); $srcrect2->y(128);
   }
 
   if ($::RotoZoomer) {
   	# Top border
     my $zoom = new SDL::Surface(SDL_SWSURFACE(), 128, 16, 32);
-    $srcrect1->x(16); $srcrect1->y(0); $srcrect1->width(128); $srcrect1->height(16);
+    $srcrect1->x(16); $srcrect1->y(0); $srcrect1->w(128); $srcrect1->h(16);
     SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect(0,0,0,0) );
     $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
     $dstrect->x(16); $dstrect->y(0);
@@ -2773,7 +2773,7 @@ sub RenderBorder {
     
     # Left border
     $zoom = new SDL::Surface( SDL_SWSURFACE(), 16, 128, 32);
-    $srcrect1->x(0); $srcrect1->y(16); $srcrect1->height(128); $srcrect1->width(16);
+    $srcrect1->x(0); $srcrect1->y(16); $srcrect1->h(128); $srcrect1->w(16);
     SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect(0,0,0,0) );
     $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
     $dstrect->x(0); $dstrect->y(16);
@@ -2785,7 +2785,7 @@ sub LoadBackground {
   my $filename = shift;
   my ($backgroundImage, $srcrect, $dstrect);
   
-  SDL::Viedeo::fill_rect($Background, new SDL::Rect(0, 0, $PhysicalScreenWidth, $PhysicalScreenHeight), new SDL::Color(0, 0, 0) );
+  SDL::Video::fill_rect($Background, new SDL::Rect(0, 0, $PhysicalScreenWidth, $PhysicalScreenHeight), new SDL::Color(0, 0, 0) );
   $backgroundImage = SDL::Image::load("$DataDir/$filename");
   $dstrect         = new SDL::Rect($ScreenMargin, $ScreenMargin, 0, 0);
   $srcrect         = new SDL::Rect(0, 0, $ScreenWidth, $ScreenHeight);
@@ -3966,7 +3966,7 @@ sub DrawScoreBoard {
     $::Background->print( $x, $y, "Press F to fast forward" );
     $::App->print( $x, $y, "Press F to fast forward" );
   } return;
-  SDL::Video::fill_rect($::App new SDL::Rect(0, $y, $::PhysicalScreenWidth, $::PhysicalScreenHeight - $y), new SDL::Color(0, 0, 0) );
+  SDL::Video::fill_rect($::App, new SDL::Rect(0, $y, $::PhysicalScreenWidth, $::PhysicalScreenHeight - $y), new SDL::Color(0, 0, 0) );
   $::App->print( $x, $y, $self->{recordpointer} );
 }
 
@@ -4640,8 +4640,8 @@ sub Run {
   $::ScoreFont->use();
   ($y, $yinc) = ($::ScreenHeight + 15, 20);
   $::Background->print( 10, $y += $yinc, "Pang Zero $::Version (C) 2006 by UPi (upi\@sourceforge.net)" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
-  $::Background->print( 10, $y += $yinc, "Use cursor keys to navigate menu, Enter to select" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
-  $::Background->print( 10, $y += $yinc, "P pauses the game, Esc quits" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
+  $::Background->print( 10, $y += $yinc, "Use cursor keys to navigate menu, Enter to select" )           if $y + $yinc * 2 < $::PhysicalScreenHeight;
+  $::Background->print( 10, $y += $yinc, "P pauses the game, Esc quits" )                                if $y + $yinc * 2 < $::PhysicalScreenHeight;
   SDL::Video::blit_surface($::Background, 0, $::App, 0);
   
   $::MenuFont->use();
@@ -4725,7 +4725,7 @@ sub SaveScreenshot {
 }
 
 sub Pause {
-  my $pausedSurface = new SDL::Image::load("$DataDir/paused.png");
+  my $pausedSurface = SDL::Image::load("$DataDir/paused.png");
   my $event         = new SDL::Event;
 
   SDL::Video::blit_surface($pausedSurface, 0, $App, new SDL::Rect(($PhysicalScreenWidth - $pausedSurface->width) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
@@ -5009,6 +5009,12 @@ if ($@) {
 package SDL::Font;
 
 sub new
+{
+	my $self = shift;
+	return $self;
+}
+
+sub use
 {
 
 }
