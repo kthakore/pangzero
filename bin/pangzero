@@ -346,19 +346,19 @@ sub AddLevels {
 
 # Set defaults
 
-$ScreenMargin = 16;
-$ScreenWidth =  800 - $ScreenMargin * 2;
-$ScreenHeight = 416;
-$SoundEnabled = 1;
-$MusicEnabled = 1;
-$DeathBallsEnabled = 1;
+$ScreenMargin           = 16;
+$ScreenWidth            = 800 - $ScreenMargin * 2;
+$ScreenHeight           = 416;
+$SoundEnabled           = 1;
+$MusicEnabled           = 1;
+$DeathBallsEnabled      = 1;
 $EarthquakeBallsEnabled = 1;
-$WaterBallsEnabled = 1;
-$SeekerBallsEnabled = 1;
-$FullScreen = 1;
-$UnicodeMode = 0;
-$Slippery = 0;
-$ShowWebsite = 0;
+$WaterBallsEnabled      = 1;
+$SeekerBallsEnabled     = 1;
+$FullScreen             = 1;
+$UnicodeMode            = 0;
+$Slippery               = 0;
+$ShowWebsite            = 0;
 
 
 ##########################################################################
@@ -465,7 +465,7 @@ sub SetDifficultyLevel {
     $difficultyLevelIndex = $DifficultyLevelIndex;
   }
   $DifficultyLevelIndex = $difficultyLevelIndex;
-  $DifficultyLevel = $DifficultyLevels[$difficultyLevelIndex];
+  $DifficultyLevel      = $DifficultyLevels[$difficultyLevelIndex];
 }
 
 sub SetWeaponDuration {
@@ -474,7 +474,7 @@ sub SetWeaponDuration {
     $weaponDurationIndex = $WeaponDurationIndex;
   }
   $WeaponDurationIndex = $weaponDurationIndex;
-  $WeaponDuration = $WeaponDurations[$WeaponDurationIndex];
+  $WeaponDuration      = $WeaponDurations[$WeaponDurationIndex];
 }
 
 
@@ -541,12 +541,12 @@ sub InputPlayerNames {
     $player = $highScoreEntry->[0];
     next unless ref $player;
     unless ($player->{highScoreName}) {
-      $score = $highScoreEntry->[1];
-      $message = $score < 1000 ? "Level $score" : "Score $score";
+      $score                   = $highScoreEntry->[1];
+      $message                 = $score < 1000 ? "Level $score" : "Score $score";
       $player->{highScoreName} = &InputPlayerName($player, $message);
     }
     $highScoreEntry->[0] = $player->{highScoreName};
-    $retval = 1;
+    $retval              = 1;
   }
   foreach $player (@Players) {
     delete $player->{highScoreName};
@@ -1144,8 +1144,8 @@ sub Draw {
     $srcrect = new SDL::Rect(320, 128, 32, 32);
   }
   $dstrect = new SDL::Rect(
-    -x => $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->w()) / 2, 
-    -y => $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->h()) / 2 + 2);
+    $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->w()) / 2, 
+    $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->h()) / 2 + 2, 0, 0);
   SDL::Video::blit_surface($guySurface, $srcrect, $::App, $dstrect);
 }
 
@@ -1957,8 +1957,8 @@ sub Draw {
     $h = $::ScreenHeight - $y;
     $h = $maxh if $h > $maxh;
     $dstrect->y( $y + $::ScreenMargin );
-    $dstrect->height( $h );
-    $srcrect->height( $h );
+    $dstrect->h( $h );
+    $srcrect->h( $h );
     SDL::Video::blit_surface($self->{surface}, $srcrect, $::App, $dstrect );
 
     # Prepare for next piece
@@ -2165,10 +2165,7 @@ sub Draw {
   my $self = shift;
   my ($srcrect);
 
-  $srcrect = new SDL::Rect(
-    -x => ($self->{speedX} > 0 ? 0 : 64),
-    -y => 128,
-    -width => 64, -height => 64 );
+  $srcrect = new SDL::Rect(($self->{speedX} > 0 ? 0 : 64), 128, 64, 64 );
   $self->TransferRect();
   if ($::RotoZoomer) {
     my $roto = new SDL::Surface( SDL_SWSURFACE(), 64, 64, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
@@ -2194,13 +2191,13 @@ sub new {
   my ($class) = @_;
   my ($self, $surface);
 
-  $self = new GameObject;
-  $surface = new SDL::Surface( -name => "$::DataDir/meltdown.png" );
+  $self    = new GameObject;
+  $surface = SDL::Image::load( "$::DataDir/meltdown.png" );
   %{$self} = ( %{$self},
-    'x' => ($::ScreenWidth - $surface->width) / 2,
-    'y' => -$surface->height,
-    'w' => $surface->width,
-    'h' => $surface->height,
+    'x' => ($::ScreenWidth - $surface->w) / 2,
+    'y' => -$surface->h,
+    'w' => $surface->w,
+    'h' => $surface->h,
     'speedY' => 0,
     'surface' => $surface,
     'bounce' => 0,
@@ -2249,7 +2246,7 @@ sub new {
     'h' => 42,
     'selected' => 0,
     'filled' => 0,
-    'fillcolor' => new SDL::Color(-b=>128),
+    'fillcolor' => new SDL::Color(0, 0, 128),
     'parameter' => 0,
     'tooltip' => [ @_[4 .. $#_] ],
   );
@@ -2330,7 +2327,7 @@ sub Draw {
   return if $self->{state} eq 'hidden';
   $self->TransferRect();
   if ($self->{selected} or $self->{filled}) {
-    $::App->fill($self->{rect}, $self->{fillcolor});
+    SDL::Video::fill_rect($::App, $self->{rect}, $self->{fillcolor});
   }
   $::App->print($self->{x} + 5 +$::ScreenMargin, $self->{y} + $::ScreenMargin, $self->{text});
 }
@@ -2338,11 +2335,11 @@ sub Draw {
 sub SetInitialSpeed {
   my $self = shift;
   
-  $self->{x} = $self->{targetX} + rand(500) - 250;
-  $self->{y} = $::PhysicalScreenHeight;
+  $self->{x}      = $self->{targetX} + rand(500) - 250;
+  $self->{y}      = $::PhysicalScreenHeight;
   $self->{speedY} = -sqrt( 2 * $Gravity * ($self->{y} - $self->{targetY}) );
   $self->{speedX} = 0;
-  $self->{state} = 'entering';
+  $self->{state}  = 'entering';
 }
 
 sub InternalSetText {
@@ -2393,25 +2390,25 @@ package GameTimer;
 use vars qw($FirstTick $LastTick $TotalAdvances $LastFpsTick $LastFps $Fps);
 
 sub ResetTimer {
-  $FirstTick = $::App->ticks;
-  $LastTick = $LastFpsTick = $FirstTick;
-  $TotalAdvances = 0;
-  $Fps = $LastFps = 0;
+  $FirstTick      = SDL::Time::get_ticks();
+  $LastTick       = $LastFpsTick = $FirstTick;
+  $TotalAdvances  = 0;
+  $Fps            = $LastFps = 0;
 }
 
 sub GetAdvances {
   my ($ticks, $advance);
 
-  $ticks = $::App->ticks;
-  $advance = int(($ticks - $FirstTick) / 10) - $TotalAdvances;
+  $ticks          = SDL::Time::get_ticks();
+  $advance        = int(($ticks - $FirstTick) / 10) - $TotalAdvances;
   $TotalAdvances += $advance;
   
   # Calculate frames per second;
   ++$Fps if $advance > 0;
   if ($ticks - $LastFpsTick > 1000) {
-    $LastFps = $Fps;
+    $LastFps     = $Fps;
     $LastFpsTick = $ticks;
-    $Fps = 0;
+    $Fps         = 0;
   }
   
   return $advance;
@@ -2431,12 +2428,12 @@ use vars qw(@Joysticks @JoystickButtons);
 sub InitJoystick {
   my ($numJoysticks, $joystick, $numButtons, $i);
 
-  $numJoysticks = &SDL::NumJoysticks();
+  $numJoysticks = &SDL::Joystick::num_joysticks();
   for ($i = 0; $i < $numJoysticks; ++$i) {
-    print STDERR "Found joystick " , $i+1 , ": " , &SDL::JoystickName($i), "\n";
-    $joystick = &SDL::JoystickOpen($i);
+    print STDERR "Found joystick " , $i+1 , ": " , &SDL::Joystick::open($i), "\n";
+    $joystick = &SDL::Joystick::open($i);
     next unless $joystick;
-    $numButtons = &SDL::JoystickNumButtons($joystick);
+    $numButtons = &SDL::Joystick::open($joystick);
     next unless $numButtons;
     push @Joysticks, $joystick;
     push @JoystickButtons, $numButtons;
@@ -2451,7 +2448,7 @@ sub ReadJoystick {
   $i = 0;
   foreach my $joystick (@Joysticks) {
     ++$i;
-    my $axis = &SDL::JoystickGetAxis($joystick, 0);
+    my $axis = &SDL::Joystick::get_axis($joystick, 0);
     if ($axis <= -10000) {
       $::Events{"L$i"} = $::MenuEvents{LEFT} = 1 unless $::Keys{"L$i"};
       $::Keys{"L$i"} = 1;
@@ -2465,7 +2462,7 @@ sub ReadJoystick {
       $::Keys{"R$i"} = 0;
     }
     if ($readBothAxes) {
-      $axis = &SDL::JoystickGetAxis($joystick, 1);
+      $axis = &SDL::Joystick::get_axis($joystick, 1);
       if ($axis <= -10000) {
         $::Events{"U$i"} = $::MenuEvents{UP} = 1 unless $::Keys{"U$i"};
         $::Keys{"U$i"} = 1;
@@ -2481,7 +2478,7 @@ sub ReadJoystick {
     }
     $buttonPressed = 0;
     for ($button = 0; $button < $JoystickButtons[$i-1]; ++$button) {
-      if (&SDL::JoystickGetButton($joystick, $button)) {
+      if (&SDL::Joystick::get_button($joystick, $button)) {
         $buttonPressed = 1; last;
       }
     }
@@ -2585,8 +2582,8 @@ package SDL::Surface;
 
 sub display_format_alpha {
   my $self = shift;
-  my $tmp = SDL::DisplayFormatAlpha($$self);
-  SDL::FreeSurface ($$self);
+  my $tmp = SDL::Video::display_format_alpha($$self);
+  #SDL::FreeSurface ($$self);
   $$self = $tmp;
   $self;
 }
@@ -4731,18 +4728,19 @@ sub SaveScreenshot {
   my $i = 0;
   my $filename;
   do { $filename = sprintf("screenshot%03d.bmp", $i); ++$i } while (-f $filename);
-  $App->save_bmp($filename);
+  SDL::Video::save_BMP($App, $filename);
 }
 
 sub Pause {
   my $pausedSurface = new SDL::Surface(-name => "$DataDir/paused.png");
-  my $event = new SDL::Event;
+  my $event         = new SDL::Event;
 
   SDL::Video::blit_surface($pausedSurface, 0, $App, new SDL::Rect(($PhysicalScreenWidth - $pausedSurface->width) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
   $App->sync();
   $::Keys = (); $::Events = ();
   while (1) { # Paused, wait for keypress
-    $event->wait();
+    SDL::Events::pump_events();
+    SDL::Events::wait_events($event);
     last if $event->type() == SDL_KEYDOWN and $event->key_sym == SDLK_p;
     if ($event->type() == SDL_KEYDOWN and $event->key_sym == SDLK_ESCAPE) { $Game->{abortgame} = 1; last; }
     $Game->Exit() if $event->type() == SDL_QUIT;
@@ -4757,7 +4755,8 @@ sub HandleEvents {
 
   $event = new SDL::Event;
   while (1) {
-    last unless $event->poll();
+    SDL::Events::pump_events();
+    last unless SDL::Events::poll_event($event);
     $type = $event->type();
 
     if ($type == SDL_QUIT) {
@@ -4772,18 +4771,18 @@ sub HandleEvents {
       } elsif ($keypressed == SDLK_p and not $UnicodeMode) {
         &Pause();
       } else {
-        $Keys{$keypressed} = 1;
+        $Keys{$keypressed}   = 1;
         $Events{$keypressed} = 1;
-        $MenuEvents{UP} = 1 if $keypressed == SDLK_UP();
-        $MenuEvents{DOWN} = 1 if $keypressed == SDLK_DOWN();
-        $MenuEvents{LEFT} = 1 if $keypressed == SDLK_LEFT();
-        $MenuEvents{RIGHT} = 1 if $keypressed == SDLK_RIGHT();
-        $MenuEvents{BUTTON} = 1 if $keypressed == SDLK_RETURN();
-        $LastUnicodeKey = $event->key_unicode() if $UnicodeMode;
+        $MenuEvents{UP}      = 1 if $keypressed == SDLK_UP();
+        $MenuEvents{DOWN}    = 1 if $keypressed == SDLK_DOWN();
+        $MenuEvents{LEFT}    = 1 if $keypressed == SDLK_LEFT();
+        $MenuEvents{RIGHT}   = 1 if $keypressed == SDLK_RIGHT();
+        $MenuEvents{BUTTON}  = 1 if $keypressed == SDLK_RETURN();
+        $LastUnicodeKey      = $event->key_unicode() if $UnicodeMode;
       }
     }
     elsif ($type == SDL_KEYUP) {
-      my $keypressed = $event->key_sym;
+      my $keypressed     = $event->key_sym;
       $Keys{$keypressed} = 0;
     }
   }
@@ -4793,15 +4792,15 @@ sub HandleEvents {
 
 sub DoMenu {
   my $oldScreenHeight = $ScreenHeight;
-  my $oldScreenWidth = $ScreenWidth;
-  $ScreenWidth = $PhysicalScreenWidth - $ScreenMargin * 2;
-  $ScreenWidth = int($ScreenWidth / 32) * 32;
+  my $oldScreenWidth  = $ScreenWidth;
+  $ScreenWidth        = $PhysicalScreenWidth - $ScreenMargin * 2;
+  $ScreenWidth        = int($ScreenWidth / 32) * 32;
 
-  $Game = new Menu;
+  $Game      = new Menu;
   my $retval = $Game->Run();
   &SaveConfig();
 
-  $ScreenWidth = $oldScreenWidth;
+  $ScreenWidth  = $oldScreenWidth;
   $ScreenHeight = $oldScreenHeight;
 
   return $retval;
@@ -4898,7 +4897,7 @@ sub Initialize {
   &SDL::Mouse::show_cursor(0);
 
   $Background = SDL::Surface->new(( &IsMicrosoftWindows ? SDL_SWSURFACE : SDL_HWSURFACE ), $App->w, $App->h, 16);
-  #$Background->display_format;
+  $Background = SDL::Video::display_format($Background);
   $ScoreFont  = new SDL::Font("$DataDir/brandybun3.png");
   $MenuFont   = new SDL::Font("$::DataDir/font2.png");
   $GlossyFont = new SDL::Font("$::DataDir/glossyfont.png");
