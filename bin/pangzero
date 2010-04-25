@@ -665,7 +665,7 @@ sub Advance {
 
 sub Clear {
   my ($self) = @_;
-  $::Background->blit($self->{rect}, $::App, $self->{rect});
+  SDL::Video::blit_surface($::Background, $self->{rect}, $::App, $self->{rect});
 }
 
 sub TransferRect {
@@ -862,9 +862,9 @@ sub Draw {
   
   $self->TransferRect();
   if ($self->{ismagic} and int($::Game->{anim}/4) % 2) {
-    $::BallSurfaces{ball4}->blit( $Ball::MagicBallRect, $::App, $self->{rect} );
+    SDL::Video::blit_surface($::BallSurfaces{ball4}, $Ball::MagicBallRect, $::App, $self->{rect} );
   } else {
-    $self->{surface}->blit( $self->{desc}->{rect}, $::App, $self->{rect} );
+    SDL::Video::blit_surface($self->{surface}, $self->{desc}->{rect}, $::App, $self->{rect} );
   }
 }
 
@@ -1013,14 +1013,14 @@ sub Draw {
   
   $self->TransferRect();
   if ($self->{ismagic} and int($::Game->{anim} / 3) % 3 == 0) {
-    $self->{surface}->blit($self->{desc}->{magicrect}, $::App, $self->{rect});
+    SDL::Video::blit_surface($self->{surface}, $self->{desc}->{magicrect}, $::App, $self->{rect});
   } else {
     $rect = $self->{desc}->{rect};
     $phase = int($::Game->{anim} / 5) % 3;
     $phase = 2 - $phase if $self->{speedX} < 0;
     $srcx = $phase * $self->{w};
     $rect->x( $rect->x + $srcx );
-    $self->{surface}->blit( $rect, $::App, $self->{rect} );
+    SDL::Video::blit_surface($self->{surface}, $rect, $::App, $self->{rect} );
     $rect->x( $rect->x - $srcx );
   }
 }
@@ -1146,7 +1146,7 @@ sub Draw {
   $dstrect = new SDL::Rect(
     -x => $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->w()) / 2, 
     -y => $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->h()) / 2 + 2);
-  $guySurface->blit($srcrect, $::App, $dstrect);
+  SDL::Video::blit_surface($guySurface, $srcrect, $::App, $dstrect);
 }
 
 
@@ -1409,7 +1409,7 @@ sub Draw {
     $self->{desc}->{srcy},
     $self->{w},
     $self->{h} );
-  $self->{surface}->blit( $srcrect, $::App, $self->{rect} );
+  SDL::Video::blit_surface($self->{surface}, $srcrect, $::App, $self->{rect} );
 }
 
 
@@ -1586,7 +1586,7 @@ sub Draw {
 
   return if $self->{bottomDelay} < 100 and (($::Game->{anim} / 4) % 2 < 1);
   $self->TransferRect();
-  $::BonusSurface->blit($self->{desc}->{srcRect}, $::App, $self->{rect});
+  SDL::Video::blit_surface($::BonusSurface, $self->{desc}->{srcRect}, $::App, $self->{rect});
 }
 
 sub OnCollectedSlowEffect {
@@ -1837,7 +1837,7 @@ sub Draw {
   }
   $srcrect = new SDL::Rect($srcx, $srcy, $srcw, $srch );
   $self->TransferRect();
-  $surface->blit($srcrect, $::App, $self->{rect});
+  SDL::Video::blit_surface($surface, $srcrect, $::App, $self->{rect});
 }
 
 sub Kill {
@@ -1959,7 +1959,7 @@ sub Draw {
     $dstrect->y( $y + $::ScreenMargin );
     $dstrect->height( $h );
     $srcrect->height( $h );
-    $self->{surface}->blit( $srcrect, $::App, $dstrect );
+    SDL::Video::blit_surface($self->{surface}, $srcrect, $::App, $dstrect );
 
     # Prepare for next piece
     $y += $h;
@@ -2028,7 +2028,7 @@ sub Draw {
   my $self = shift;
 
   $self->TransferRect();
-  $self->{surface}->blit($SrcRects[$self->{index}], $::App, $self->{rect});
+  SDL::Video::blit_surface($self->{surface}, $SrcRects[$self->{index}], $::App, $self->{rect});
 }
 
 ##########################################################################
@@ -2172,14 +2172,14 @@ sub Draw {
   $self->TransferRect();
   if ($::RotoZoomer) {
     my $roto = new SDL::Surface( SDL_SWSURFACE(), 64, 64, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
-    $self->{surface}->blit( $srcrect, $roto, new SDL::Rect );
+    SDL::Video::blit_surface($self->{surface}, $srcrect, $roto, new SDL::Rect );
     $::RotoZoomer->rotoZoom( $roto, $self->{anim} * 5, 1, $::SmoothRotoZoom );
     $self->{rect}->x( $self->{rect}->x - ($roto->width  - 64) / 2 );
     $self->{rect}->y( $self->{rect}->y - ($roto->height - 64) / 2 );
-    $roto->blit( 0, $::App, $self->{rect} );
+    SDL::Video::blit_surface($roto, 0, $::App, $self->{rect} );
     return;
   } else {
-    $self->{surface}->blit( $srcrect, $::App, $self->{rect} );
+    SDL::Video::blit_surface($self->{surface}, $srcrect, $::App, $self->{rect} );
   }
 }
 
@@ -2226,7 +2226,7 @@ sub Draw {
   my $self = shift;
   
   $self->TransferRect();
-  $self->{surface}->blit( 0, $::App, $self->{rect} );
+  SDL::Video::blit_surface($self->{surface}, 0, $::App, $self->{rect} );
 }
 
 
@@ -2709,32 +2709,32 @@ sub RenderBorder {
   # Draw the corners
   $dstrect = new SDL::Rect( -width => 16, -height =>16);
   $srcrect1 = new SDL::Rect( -width => 16, -height =>16);
-  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
   $dstrect->x($width - 16); $srcrect1->x(144);
-  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
   $dstrect->y($height - 16); $srcrect1->y(144);
-  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
   $dstrect->x(0); $srcrect1->x(0);
-  $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+  SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
   
   if ($::RotoZoomer) {
     # Top border
     my $zoom = new SDL::Surface( -name =>'',
         -flags=>::SDL_SWSURFACE(), -width => 128, -height => 16, -depth => 32);
     $srcrect1->x(16); $srcrect1->y(0); $srcrect1->width(128); $srcrect1->height(16);
-    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect );
     $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
     $dstrect->x(16); $dstrect->y(0);
-    $zoom->blit( 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
     
     # Left border
     $zoom = new SDL::Surface( -name =>'',
         -flags=>::SDL_SWSURFACE(), -width => 16, -height => 128, -depth => 32);
     $srcrect1->x(0); $srcrect1->y(16); $srcrect1->height(128); $srcrect1->width(16);
-    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect );
     $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
     $dstrect->x(0); $dstrect->y(16);
-    $zoom->blit( 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
   }
 
   # Draw top and bottom border
@@ -2744,9 +2744,9 @@ sub RenderBorder {
   for ($xpos = 16; $xpos < $width-16; ) {
     $dstrect->x($xpos);
     $dstrect->y(0);
-    $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
     $dstrect->y($height - 16);
-    $borderSurface->blit($srcrect2, $targetSurface, $dstrect);
+    SDL::Video::blit_surface($borderSurface, $srcrect2, $targetSurface, $dstrect);
     $xpos += $srcrect1->width();
     $srcrect1->width(16); $srcrect1->x(128);
     $srcrect2->width(16); $srcrect2->x(128);
@@ -2759,9 +2759,9 @@ sub RenderBorder {
   for ($ypos = 16; $ypos < $height-16; ) {
     $dstrect->x(0);
     $dstrect->y($ypos);
-    $borderSurface->blit($srcrect1, $targetSurface, $dstrect);
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
     $dstrect->x($width - 16);
-    $borderSurface->blit($srcrect2, $targetSurface, $dstrect);
+    SDL::Video::blit_surface($borderSurface, $srcrect2, $targetSurface, $dstrect);
     $ypos += $srcrect1->height();
     $srcrect1->height(16); $srcrect1->y(128);
     $srcrect2->height(16); $srcrect2->y(128);
@@ -2772,19 +2772,19 @@ sub RenderBorder {
     my $zoom = new SDL::Surface( -name =>'',
         -flags=>::SDL_SWSURFACE(), -width => 128, -height => 16, -depth => 32);
     $srcrect1->x(16); $srcrect1->y(0); $srcrect1->width(128); $srcrect1->height(16);
-    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect );
     $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
     $dstrect->x(16); $dstrect->y(0);
-    $zoom->blit( 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
     
     # Left border
     $zoom = new SDL::Surface( -name =>'',
         -flags=>::SDL_SWSURFACE(), -width => 16, -height => 128, -depth => 32);
     $srcrect1->x(0); $srcrect1->y(16); $srcrect1->height(128); $srcrect1->width(16);
-    $borderSurface->blit( $srcrect1, $zoom, new SDL::Rect );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect );
     $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
     $dstrect->x(0); $dstrect->y(16);
-    $zoom->blit( 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
   }
 }
 
@@ -2803,7 +2803,7 @@ sub LoadBackground {
       $backgroundImage = $::RotoZoomer->zoom($backgroundImage, $zoomX, $zoomY, $::SmoothRotoZoom);
     }
   }
-  $backgroundImage->blit($srcrect, $Background, $dstrect);
+  SDL::Video::blit_surface($backgroundImage, $srcrect, $Background, $dstrect);
   
   &RenderBorder($BorderSurface, $Background);
 }
@@ -2961,7 +2961,7 @@ sub SetBackground {
   
   return if $backgroundIndex >= scalar( @{$self->{backgrounds}} );
   &::LoadBackground($self->{backgrounds}->[$backgroundIndex]);
-  $::Background->blit(0, $::App, 0);
+  SDL::Video::blit_surface($::Background, 0, $::App, 0);
 }
 
 sub ShowTooltip {
@@ -3300,7 +3300,7 @@ sub PrintNumber {
   for ($i = 0; $i < length($numberText); ++$i) {
     $srcrect->x(320 + (ord(substr($numberText, $i)) - ord('0')) * 16);
     $dstrect->x($x + $i * 16);
-    $player->{guySurface}->blit( $srcrect, $::App, $dstrect );
+    SDL::Video::blit_surface($player->{guySurface}, $srcrect, $::App, $dstrect );
   }
 }
 
@@ -3321,12 +3321,12 @@ sub DrawScore {
   }
   
   if ($player->{lives} > 3) {
-    $player->{guySurface}->blit( $srcrect, $::App, $dstrect );
+    SDL::Video::blit_surface($player->{guySurface}, $srcrect, $::App, $dstrect );
     $self->PrintNumber( $player, $x + $srcrect->width() + 8, $livesY + ($srcrect->height() - 16 ) / 2, $player->{lives} );
   } else {
     foreach $i ( 0 .. $player->{lives}-1 ) {
       $dstrect->x( $x + $i * ($srcrect->width() + 4) );
-      $player->{guySurface}->blit( $srcrect, $::App, $dstrect );
+      SDL::Video::blit_surface($player->{guySurface}, $srcrect, $::App, $dstrect );
     }
   }
 }
@@ -3416,7 +3416,7 @@ sub Run {
       my @gameObjects = @::GameObjects;
       foreach (@gameObjects) { $_->Delete() if ('DeadGuy' eq ref $_); }
       $self->DrawGame();
-      $gameoverSurface->blit(0, $::App, new SDL::Rect(-x => ($::PhysicalScreenWidth - $gameoverSurface->width) / 2, -y => $::PhysicalScreenHeight / 2 - 100));
+      SDL::Video::blit_surface($gameoverSurface, 0, $::App, new SDL::Rect(($::PhysicalScreenWidth - $gameoverSurface->width) / 2, $::PhysicalScreenHeight / 2 - 100, 0, 0));
       $::App->sync();
       $::App->delay(1000);
       for (my $i=0; $i < 20; ++$i) {
@@ -3563,8 +3563,8 @@ sub DrawLevelIndicator {
   
   $self->{levelIndicatorRect} = new SDL::Rect(-x => $x, -y => $y, -width => 140, -height => $self->{scoreBoardHeight}) unless $self->{levelIndicatorRect};
   $::App->fill( $self->{levelIndicatorRect}, new SDL::Color() );
-  $::LevelIndicatorSurface2->blit( 0, $::App, new SDL::Rect(-x => $x, -y => $y));
-  $::LevelIndicatorSurface->blit( new SDL::Rect(-width => 130 * $self->{leveladvance} / 17, -height => 30), $::App, new SDL::Rect(-x => $x, -y => $y));
+  SDL::Video::blit_surface($::LevelIndicatorSurface2, 0, $::App, new SDL::Rect($x, $y, 0, 0));
+  SDL::Video::blit_surface($::LevelIndicatorSurface, new SDL::Rect(0, 0, 130 * $self->{leveladvance} / 17, 30), $::App, new SDL::Rect($x, $y, 130 * $self->{leveladvance} / 17, 30));
   $::App->print( $x + 25, $y + 3, 'Level ' . ($self->{level}+1) );
   $::App->print( $x, $y + 40, sprintf('spd: %d/%d', $::GameSpeed * 100, $self->{leveldesc}->{spawndelay}) ) if $self->{scoreBoardHeight} >= 64;
 }
@@ -3615,7 +3615,7 @@ sub SetGameLevel {
   $levelObject->{h} = $surface->height();
   $levelObject->{x} = ($::ScreenWidth - $levelObject->{w}) / 2;
   $levelObject->{y} = ($::ScreenHeight - $levelObject->{h}) / 2;
-  $levelObject->{draw} = sub { my $self = shift; $self->{surface}->blit( 0, $::App, $self->{rect} ); };
+  $levelObject->{draw}    = sub { my $self = shift; SDL::Video::blit_surface($self->{surface}, 0, $::App, $self->{rect} ); };
   $levelObject->{advance} = sub { my $self = shift; $self->Delete() if ++$self->{time} > 200; };
   push @::GameObjects, $levelObject;
 }
@@ -3748,7 +3748,7 @@ sub Rewind {
   $self->{record} = substr($self->{record}, 0, $recordEnd);
   $::Game = $playback = new DemoPlaybackGame($::NumGuys, $::DifficultyLevel, $self->{record}, $self->{rand}, {});
   $playback->{skip} = 1;
-  $::Background->blit(0, $::App, 0);
+  SDL::Video::blit_surface($::Background, 0, $::App, 0);
   $playback->Run();
   
   $playback->RestoreGameSettings();
@@ -3757,7 +3757,7 @@ sub Rewind {
   $self->{abortgame} = 0;
   print "Splicing {rand}: original length is ", scalar(@{$self->{rand}}), "; playback randpointer is $playback->{randpointer}.\n";
   splice @{$self->{rand}}, $playback->{randpointer};
-  $::Background->blit(0, $::App, 0);
+  SDL::Video::blit_surface($::Background, 0, $::App, 0);
   $self->DrawGame();
   %::Events = %::Keys = ();
   while( not %::Events ) { &::HandleEvents(); $::App->delay(100); }
@@ -3889,7 +3889,7 @@ sub DisplayMessage {
     $::App->sync();
     last if $len > length($message) + 15;
   }
-  $::Background->blit(new SDL::Rect(-width=>$::PhysicalScreenWidth, -y=>$y, -height=>40), $::App, new SDL::Rect(-y => $y));
+  SDL::Video::blit_surface($::Background, new SDL::Rect(0, $y, $::PhysicalScreenWidth, $y, 40), $::App, new SDL::Rect(0, $y, 0, 0));
 }
 
 
@@ -4018,7 +4018,7 @@ sub ShowTooltip {
   }
   $rect = new SDL::Rect( -x => 0, -y => $::ScreenHeight + 35, 
     -w => $::PhysicalScreenWidth, -h => $::PhysicalScreenWidth - $y );
-  $::Background->blit($rect, $::App, $rect);
+  SDL::Video::blit_surface($::Background, $rect, $::App, $rect);
   $::MenuFont->use();
 }
 
@@ -4652,7 +4652,7 @@ sub Run {
   $::Background->print( 10, $y += $yinc, "Pang Zero $::Version (C) 2006 by UPi (upi\@sourceforge.net)" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
   $::Background->print( 10, $y += $yinc, "Use cursor keys to navigate menu, Enter to select" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
   $::Background->print( 10, $y += $yinc, "P pauses the game, Esc quits" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
-  $::Background->blit(0, $::App, 0);
+  SDL::Video::blit_surface($::Background, 0, $::App, 0);
   
   $::MenuFont->use();
   push @::GameObjects, (new FpsIndicator);
@@ -4738,7 +4738,7 @@ sub Pause {
   my $pausedSurface = new SDL::Surface(-name => "$DataDir/paused.png");
   my $event = new SDL::Event;
 
-  $pausedSurface->blit(0, $App, new SDL::Rect(-x => ($PhysicalScreenWidth - $pausedSurface->width) / 2, -y => $PhysicalScreenHeight / 2 - 100));
+  SDL::Video::blit_surface($pausedSurface, 0, $App, new SDL::Rect(($PhysicalScreenWidth - $pausedSurface->width) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
   $App->sync();
   $::Keys = (); $::Events = ();
   while (1) { # Paused, wait for keypress
@@ -4747,7 +4747,7 @@ sub Pause {
     if ($event->type() == SDL_KEYDOWN and $event->key_sym == SDLK_ESCAPE) { $Game->{abortgame} = 1; last; }
     $Game->Exit() if $event->type() == SDL_QUIT;
   }
-  $Background->blit(0, $App, 0);
+  SDL::Video::blit_surface($Background, 0, $App, 0);
   &GameTimer::ResetTimer();
 }
 
@@ -4927,10 +4927,10 @@ sub MainLoop {
   bless $Game, 'Menu';
   $Game->{abortgame} = 0;
   { my @gameObjects = @GameObjects; foreach (@gameObjects) { $_->Delete() if ref $_ eq 'Guy'; } }
-  $Background->blit(0, $App, 0);
+  SDL::Video::blit_surface($Background, 0, $App, 0);
   $MenuFont->use();
   &MergeUnsavedHighScores($menuResult eq 'challenge' ? 'Cha' : 'Pan');
-return;
+  return;
 
   my ($filename, $i) = ('', 1);
   do { $filename = sprintf("record%03d.txt", $i); ++$i } while (-f $filename);
