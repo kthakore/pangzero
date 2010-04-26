@@ -2676,27 +2676,27 @@ sub MakeGuySurfaces {
   &AlterPalette($WhiteHarpoonSurface, sub {1;}, sub { return (255, 255, 255); } );
 }
 
-sub AlterPalette($$$) {
-  my ($surface, $filterSub, $alterSub) = @_;
-  my ($r, $g, $b);
-  my ($palette, $numColors, $n, $color);
+sub AlterPalette() {
+#  my ($surface, $filterSub, $alterSub) = @_;
+#  my ($r, $g, $b);
+#  my ($palette, $numColors, $n, $color);
 
-  $palette   = $surface->format->palette();
-  $numColors = ($surface->format->BytesPerPixel == 1) ? $palette->ncolors() : -1;
-  for ($n = 0; $n < $numColors; $n++) {
-    $color       = $palette->color_index($n);
-    ($r, $g, $b) = ( $color->r, $color->g, $color->b );
+#  $palette   = $surface->format->palette();
+#  $numColors = ($surface->format->BytesPerPixel == 1) ? $palette->ncolors() : -1;
+  # for ($n = 0; $n < $numColors; $n++) {
+  # $color       = $palette->color_index($n);
+  # ($r, $g, $b) = ( $color->r, $color->g, $color->b );
 
-    next unless $filterSub->($n, $r, $g, $b);
-    ($r, $g, $b) = $alterSub->($n, $r, $g, $b);
-    $r = $g = $b = 4 if ($r == 0 and $g == 0 and $b == 0);
+  # next unless $filterSub->($n, $r, $g, $b);
+  # ($r, $g, $b) = $alterSub->($n, $r, $g, $b);
+  # $r = $g = $b = 4 if ($r == 0 and $g == 0 and $b == 0);
 
-	$color->r($r);
-	$color->g($g);
-	$color->b($b);
-    SDL::Video::set_colors($surface, 0, $color);
-  }
-  $surface = SDL::Video::display_format($surface);
+#	$color->r($r);
+#	$color->g($g);
+#	$color->b($b);
+#	SDL::Video::set_colors($surface, $n, $color);
+  # }
+#  $surface = SDL::Video::display_format($surface);
 }
 
 sub RenderBorder {
@@ -4890,7 +4890,7 @@ sub Initialize {
     -icon => "$DataDir/icon.png",
     -width => $PhysicalScreenWidth,
     -height => $PhysicalScreenHeight,
-    -fullscreen => $FullScreen,
+    #-fullscreen => $FullScreen,
   );
   
   eval( 'use SDL::Tool::Graphic; $RotoZoomer = new SDL::Tool::Graphic; $::SmoothRotoZoom = 0;' );  # Detect if zoom / rotozoom works
