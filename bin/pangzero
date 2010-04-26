@@ -90,6 +90,7 @@ use SDL::Mixer::MixMusic;
 use SDL::Joystick;
 use SDL::Mouse;
 use SDL::Image;
+use SDLx::TTF;
 
 use Carp;
 
@@ -1465,7 +1466,8 @@ sub Advance {
 sub Draw {
   my $self = shift;
 
-  $::App->print( $self->{rect}->x, $self->{rect}->y, "Time left: " . ($::GamePause / 100) );
+  SDLx::TTF::print_text( $::App, $self->{rect}->x, $self->{rect}->y, "Time left: " . ($::GamePause / 100) );
+
 }
 
 
@@ -1495,7 +1497,8 @@ sub new {
 sub Draw {
   my $self = shift;
 
-  $::App->print( $self->{rect}->x, $self->{rect}->y, &GameTimer::GetFramesPerSecond() );
+  SDLx::TTF::print_text( $::App, $self->{rect}->x, $self->{rect}->y, &GameTimer::GetFramesPerSecond() );
+
 }
 
 
@@ -2329,7 +2332,8 @@ sub Draw {
   if ($self->{selected} or $self->{filled}) {
     SDL::Video::fill_rect($::App, $self->{rect}, $self->{fillcolor});
   }
-  $::App->print($self->{x} + 5 +$::ScreenMargin, $self->{y} + $::ScreenMargin, $self->{text});
+  SDLx::TTF::print_text( $::App,$self->{x} + 5 +$::ScreenMargin, $self->{y} + $::ScreenMargin, $self->{text});
+
 }
 
 sub SetInitialSpeed {
@@ -3280,7 +3284,8 @@ sub DrawLevelIndicator {
   
   $self->{levelIndicatorRect} = new SDL::Rect($x, $y, 100, 32) unless $self->{levelIndicatorRect};
   SDL::Video::fill_rect($::App, $self->{levelIndicatorRect}, new SDL::Color(0, 0, 0) );
-  $::App->print( $x, $y + 3, 'Level ' . ($self->{level}+1) );
+  SDLx::TTF::print_text( $::App, $x, $y + 3, 'Level ' . ($self->{level}+1) );
+
 }
 
 sub PrintNumber {
@@ -3558,8 +3563,10 @@ sub DrawLevelIndicator {
   $::App->fill( $self->{levelIndicatorRect}, new SDL::Color() );
   SDL::Video::blit_surface($::LevelIndicatorSurface2, 0, $::App, new SDL::Rect($x, $y, 0, 0));
   SDL::Video::blit_surface($::LevelIndicatorSurface, new SDL::Rect(0, 0, 130 * $self->{leveladvance} / 17, 30), $::App, new SDL::Rect($x, $y, 130 * $self->{leveladvance} / 17, 30));
-  $::App->print( $x + 25, $y + 3, 'Level ' . ($self->{level}+1) );
-  $::App->print( $x, $y + 40, sprintf('spd: %d/%d', $::GameSpeed * 100, $self->{leveldesc}->{spawndelay}) ) if $self->{scoreBoardHeight} >= 64;
+  SDLx::TTF::print_text( $::App, $x + 25, $y + 3, 'Level ' . ($self->{level}+1) );
+
+  SDLx::TTF::print_text( $::App, $x, $y + 40, sprintf('spd: %d/%d', $::GameSpeed * 100, $self->{leveldesc}->{spawndelay}) ) if $self->{scoreBoardHeight} >= 64;
+
 }
 
 
@@ -3585,7 +3592,8 @@ sub CreateLevelNumberSurface {
   $::GlossyFont->use();
   $w = &::TextWidth("Level $level");
   $surface = new SDL::Surface(SDL_SWSURFACE(), $w+6, 48, 32);
-  $surface->print( 3, 3, "Level $level" );
+  SDLx::TTF::print_text( $surface, 3, 3, "Level $level" );
+
   $::ScoreFont->use();
   return $surface;
 }
@@ -3877,7 +3885,8 @@ sub DisplayMessage {
     $adv += $advance;
     $len = int($adv / 5);
 
-    $::App->print($x, $y, substr($message, 0, $len) );
+    SDLx::TTF::print_text(   $::App,$x, $y, substr($message, 0, $len) );
+
     $::App->sync();
     last if $len > length($message) + 15;
   }
@@ -3963,11 +3972,14 @@ sub DrawScoreBoard {
   $x = 10;
   $y = $::ScreenHeight + 2 * $::ScreenMargin + 5;
   if ($self->{anim} < 1) {
-    $::Background->print( $x, $y, "Press F to fast forward" );
-    $::App->print( $x, $y, "Press F to fast forward" );
+	  SDLx::TTF::print_text(   $::Background, $x, $y, "Press F to fast forward" );
+
+	  SDLx::TTF::print_text(   $::App, $x, $y, "Press F to fast forward" );
+
   } return;
   SDL::Video::fill_rect($::App, new SDL::Rect(0, $y, $::PhysicalScreenWidth, $::PhysicalScreenHeight - $y), new SDL::Color(0, 0, 0) );
-  $::App->print( $x, $y, $self->{recordpointer} );
+  SDLx::TTF::print_text( $::App, $x, $y, $self->{recordpointer} );
+
 }
 
 
@@ -4004,7 +4016,8 @@ sub ShowTooltip {
   $rect = new SDL::Rect(0, -$y, $::PhysicalScreenWidth, $::PhysicalScreenWidth - $y );
   $::Background->fill($rect, new SDL::Color);
   foreach (@lines) {
-    $::Background->print( 10, $y, $_ ) if $y + $yinc < $::PhysicalScreenHeight;
+	  SDLx::TTF::print_text(   $::Background, 10, $y, $_ ) if $y + $yinc < $::PhysicalScreenHeight;
+
     $y += $yinc;
   }
   $rect = new SDL::Rect( 0, $::ScreenHeight + 35, $::PhysicalScreenWidth, $::PhysicalScreenWidth - $y );
@@ -4639,9 +4652,12 @@ sub Run {
   $self->ResetGame();
   $::ScoreFont->use();
   ($y, $yinc) = ($::ScreenHeight + 15, 20);
-  $::Background->print( 10, $y += $yinc, "Pang Zero $::Version (C) 2006 by UPi (upi\@sourceforge.net)" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
-  $::Background->print( 10, $y += $yinc, "Use cursor keys to navigate menu, Enter to select" )           if $y + $yinc * 2 < $::PhysicalScreenHeight;
-  $::Background->print( 10, $y += $yinc, "P pauses the game, Esc quits" )                                if $y + $yinc * 2 < $::PhysicalScreenHeight;
+  SDLx::TTF::print_text( $::Background, 10, $y += $yinc, "Pang Zero $::Version (C) 2006 by UPi (upi\@sourceforge.net)" ) if $y + $yinc * 2 < $::PhysicalScreenHeight;
+
+  SDLx::TTF::print_text( $::Background, 10, $y += $yinc, "Use cursor keys to navigate menu, Enter to select" )           if $y + $yinc * 2 < $::PhysicalScreenHeight;
+
+  SDLx::TTF::print_text( $::Background, 10, $y += $yinc, "P pauses the game, Esc quits" )                                if $y + $yinc * 2 < $::PhysicalScreenHeight;
+
   SDL::Video::blit_surface($::Background, 0, $::App, 0);
   
   $::MenuFont->use();
