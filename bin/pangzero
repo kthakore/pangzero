@@ -2809,7 +2809,7 @@ sub TextWidth {
   if (defined(&SDL::App::SDL_TEXTWIDTH)) {
     SDL::App::SDL_TEXTWIDTH(@_);   # perl-sdl-1.x
   } else {
-    SDL::SFont::SDL_TEXTWIDTH(@_); # perl-sdl-2.x
+    SDLx::TTF::SDL_TEXTWIDTH(@_); # perl-sdl-2.x
   }
 }
 
@@ -4014,7 +4014,7 @@ sub ShowTooltip {
   $::ScoreFont->use();
   ($y, $yinc) = ($::ScreenHeight + 35, 20);
   $rect = new SDL::Rect(0, -$y, $::PhysicalScreenWidth, $::PhysicalScreenWidth - $y );
-  $::Background->fill($rect, new SDL::Color);
+  $::Background->fill($rect, new SDL::Color(0,0,0) );
   foreach (@lines) {
 	  SDLx::TTF::print_text(   $::Background, 10, $y, $_ ) if $y + $yinc < $::PhysicalScreenHeight;
 
@@ -4907,9 +4907,9 @@ sub Initialize {
 
   $Background = SDL::Surface->new(( &IsMicrosoftWindows ? SDL_SWSURFACE : SDL_HWSURFACE ), $App->w, $App->h, 16);
   $Background = SDL::Video::display_format($Background);
-  $ScoreFont  = new SDL::Font("$DataDir/brandybun3.png");
-  $MenuFont   = new SDL::Font("$::DataDir/font2.png");
-  $GlossyFont = new SDL::Font("$::DataDir/glossyfont.png");
+  $ScoreFont  = SDLx::TTF->new("$DataDir/brandybun3.png");
+  $MenuFont   = SDLx::TTF->new("$::DataDir/font2.png");
+  $GlossyFont = SDLx::TTF->new("$::DataDir/glossyfont.png");
 
   &LoadSurfaces();
   &LoadSounds();
