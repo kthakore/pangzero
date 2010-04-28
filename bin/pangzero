@@ -170,11 +170,11 @@ for (my $i=0; $i<=$#Players; ++$i) {
 }
 
 my (%n0, %n1, %n2, %n3, %n4);
-%n0 = ('popIndex' => 0, 'rect' => new SDL::Rect(0, 0, 128, 106));
-%n1 = ('popIndex' => 1, 'rect' => new SDL::Rect(0, 0,  96,  80));
-%n2 = ('popIndex' => 2, 'rect' => new SDL::Rect(0, 0,  64,  53));
-%n3 = ('popIndex' => 3, 'rect' => new SDL::Rect(0, 0,  32,  28));
-%n4 = ('popIndex' => 4, 'rect' => new SDL::Rect(0, 0,  16,  15));
+%n0 = ('popIndex' => 0, 'rect' => SDL::Rect->new(0, 0, 128, 106));
+%n1 = ('popIndex' => 1, 'rect' => SDL::Rect->new(0, 0,  96,  80));
+%n2 = ('popIndex' => 2, 'rect' => SDL::Rect->new(0, 0,  64,  53));
+%n3 = ('popIndex' => 3, 'rect' => SDL::Rect->new(0, 0,  32,  28));
+%n4 = ('popIndex' => 4, 'rect' => SDL::Rect->new(0, 0,  16,  15));
 
 @BallDesc = (
 # Normal balls (n0 .. n4)
@@ -189,12 +189,12 @@ my (%n0, %n1, %n2, %n3, %n4);
   { 'name' => 'b2', 'class' => 'Ball', 'score' =>   500, 'spawndelay' => 0.1, 'speedY' => 4.2, %n4, 'surface' => 'bouncy4' },
 # Hexas (h0..h2)
   { 'name' => 'h0', 'class' => 'Hexa', 'score' =>  1500, 'spawndelay' => 0.5, 'popIndex' => 5, 'hexa' => 1,
-    'surface' => 'hexa0', 'rect' => new SDL::Rect(0, 0, 64, 52), 'nextgen' => 'h1', },
+    'surface' => 'hexa0', 'rect' => SDL::Rect->new(0, 0, 64, 52), 'nextgen' => 'h1', },
   { 'name' => 'h1', 'class' => 'Hexa', 'score' =>  1000, 'spawndelay' => 0.2, 'popIndex' => 6, 'hexa' => 1,
-    'surface' => 'hexa1', 'rect' => new SDL::Rect(0, 0, 32, 28), 'nextgen' => 'h2', },
+    'surface' => 'hexa1', 'rect' => SDL::Rect->new(0, 0, 32, 28), 'nextgen' => 'h2', },
   { 'name' => 'h2', 'class' => 'Hexa', 'score' =>   500, 'spawndelay' => 0.1, 'popIndex' => 7, 'hexa' => 1,
-    'surface' => 'hexa2', 'rect' => new SDL::Rect(0, 0, 16, 14),
-    'magicrect' => new SDL::Rect(48, 0, 16, 14), },
+    'surface' => 'hexa2', 'rect' => SDL::Rect->new(0, 0, 16, 14),
+    'magicrect' => SDL::Rect->new(48, 0, 16, 14), },
 # Water ball
   { 'name' => 'w1', 'class' => 'WaterBall', 'score' =>  1500, 'spawndelay' => 0.4, 'speedY' => 5.7, %n1, 'surface' => 'blue1', 'nextgen' => 'w2', },
   { 'name' => 'w2', 'class' => 'WaterBall', 'score' =>  1000, 'spawndelay' => 0.2, 'speedY' => 5,   %n2, 'surface' => 'blue2', 'nextgen' => 'w3', },
@@ -633,7 +633,7 @@ package GameObject;
 sub new {
   my ($class) = @_;
   my $self = {
-    'rect' => new SDL::Rect( 0, 0, 0, 0 ),
+    'rect' => SDL::Rect->new( 0, 0, 0, 0 ),
     'speedX' => 0,
     'speedY' => 0,
     'x' => 0,
@@ -685,7 +685,7 @@ sub Draw {
   if ($self->{draw}) {
     $self->{draw}->($self);
   } else {
-    $::App->fill( $self->{rect}, SDL::Color->new(0x80, 0, 0) );
+	  SDL::Video::fill_rect( $::App, $self->{rect}, SDL::Color->new(0x80, 0, 0) );
   }
 }
 
@@ -728,7 +728,7 @@ package Ball;
 
 @Ball::ISA = qw(GameObject);
 $Ball::Gravity = 0.05;
-$Ball::MagicBallRect = new SDL::Rect(80, 0, 16, 15);
+$Ball::MagicBallRect = SDL::Rect->new(80, 0, 16, 15);
 
 for (my $i=0; $i <= $#::BallDesc; ++$i) {
   my $desc = $::BallDesc[$i];
@@ -1140,11 +1140,11 @@ sub Draw {
   $self->SUPER::Draw();
   $guySurface = $self->{target}->{player}->{guySurface};
   if ($self->{w} <= 32) {
-    $srcrect = new SDL::Rect(320, 176, 16, 16);
+    $srcrect = SDL::Rect->new(320, 176, 16, 16);
   } else {
-    $srcrect = new SDL::Rect(320, 128, 32, 32);
+    $srcrect = SDL::Rect->new(320, 128, 32, 32);
   }
-  $dstrect = new SDL::Rect(
+  $dstrect = SDL::Rect->new(
     $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->w()) / 2, 
     $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->h()) / 2 + 2, 0, 0);
   SDL::Video::blit_surface($guySurface, $srcrect, $::App, $dstrect);
@@ -1220,7 +1220,7 @@ sub Pop {
   $bonusdrop = new BonusDrop($self);
   @collectedSubs = ( \&OnCollectedLife, \&OnCollectedScore, \&OnCollectedScore, \&OnCollectedInvulnerability, \&OnCollectedInvulnerability );
   if ($::Game->Rand(2 * scalar @collectedSubs) < scalar @collectedSubs) {
-    $bonusdrop->{desc} = { 'srcRect' => new SDL::Rect(0, 0, 32, 32), };
+    $bonusdrop->{desc} = { 'srcRect' => SDL::Rect->new(0, 0, 32, 32), };
     $bonusdrop->SetOnCollectedSub( $collectedSubs[int $::Game->Rand(scalar @collectedSubs)] );
   }
   push @::GameObjects, $bonusdrop;
@@ -1405,7 +1405,7 @@ sub Draw {
   $phase = int($self->{anim} / 5);
   $phase = 3 if $phase > 3;
 
-  $srcrect = new SDL::Rect(
+  $srcrect = SDL::Rect->new(
     $self->{desc}->{srcx} + $phase * $self->{w},
     $self->{desc}->{srcy},
     $self->{w},
@@ -1510,10 +1510,10 @@ package BonusDrop;
 use vars qw(@BonusDesc);
 
 @BonusDesc = (
-  { 'weaponClass' => 'MachineGun', 'bonusDelay' => 1500, 'srcRect' => new SDL::Rect( 0, 64, 32, 32), },
-  { 'weaponClass' => 'HalfCutter', 'bonusDelay' => 1000, 'srcRect' => new SDL::Rect(32, 64, 32, 32), },
-  { 'weaponClass' => 'PowerWire',  'bonusDelay' => 3000, 'srcRect' => new SDL::Rect(32, 96, 32, 32), },
-  { 'onCollectedSub' => \&OnCollectedSlowEffect,         'srcRect' => new SDL::Rect(32,  0, 32, 32), },
+  { 'weaponClass' => 'MachineGun', 'bonusDelay' => 1500, 'srcRect' => SDL::Rect->new( 0, 64, 32, 32), },
+  { 'weaponClass' => 'HalfCutter', 'bonusDelay' => 1000, 'srcRect' => SDL::Rect->new(32, 64, 32, 32), },
+  { 'weaponClass' => 'PowerWire',  'bonusDelay' => 3000, 'srcRect' => SDL::Rect->new(32, 96, 32, 32), },
+  { 'onCollectedSub' => \&OnCollectedSlowEffect,         'srcRect' => SDL::Rect->new(32,  0, 32, 32), },
 );
 
 
@@ -1705,7 +1705,7 @@ sub Delete {
 sub CalculateAnimPhases {
   my $self = shift;
   
-  $self->{animPhases} = $self->{player}->{guySurface}->width() / 128,
+  $self->{animPhases} = $self->{player}->{guySurface}->w / 128,
 }
 
 sub DemoMode {
@@ -1838,7 +1838,7 @@ sub Draw {
     $srcx = ($self->{dir} > 0 ? 0 : 64);
     $srcy = 128;
   }
-  $srcrect = new SDL::Rect($srcx, $srcy, $srcw, $srch );
+  $srcrect = SDL::Rect->new($srcx, $srcy, $srcw, $srch );
   $self->TransferRect();
   SDL::Video::blit_surface($surface, $srcrect, $::App, $self->{rect});
 }
@@ -1948,8 +1948,8 @@ sub Draw {
 
   $self->TransferRect();
   $y       = $self->{y};
-  $dstrect = new SDL::Rect( $self->{x} + $::ScreenMargin, 0, $self->{w}, 0 );
-  $srcrect = new SDL::Rect( (0, 64, 32, 96)[ $self->GetAnimPhase() ], 0, $self->{w}, 0 );
+  $dstrect = SDL::Rect->new( $self->{x} + $::ScreenMargin, 0, $self->{w}, 0 );
+  $srcrect = SDL::Rect->new( (0, 64, 32, 96)[ $self->GetAnimPhase() ], 0, $self->{w}, 0 );
   $maxh    = 160;
 
   # The harpoon needs to be drawn from tile pieces.
@@ -1980,9 +1980,9 @@ package MachineGun;
 use vars qw(@SrcRects);
 
 @SrcRects = (
-  new SDL::Rect(  0, 160, 32, 32 ),
-  new SDL::Rect( 32, 160, 32, 32 ),
-  new SDL::Rect( 64, 160, 32, 32 ),
+  SDL::Rect->new(  0, 160, 32, 32 ),
+  SDL::Rect->new( 32, 160, 32, 32 ),
+  SDL::Rect->new( 64, 160, 32, 32 ),
 );
 
 sub Create {
@@ -2168,11 +2168,11 @@ sub Draw {
   my $self = shift;
   my ($srcrect);
 
-  $srcrect = new SDL::Rect(($self->{speedX} > 0 ? 0 : 64), 128, 64, 64 );
+  $srcrect = SDL::Rect->new(($self->{speedX} > 0 ? 0 : 64), 128, 64, 64 );
   $self->TransferRect();
   if ($::RotoZoomer) {
     my $roto = new SDL::Surface( SDL_SWSURFACE(), 64, 64, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
-    SDL::Video::blit_surface($self->{surface}, $srcrect, $roto, new SDL::Rect );
+    SDL::Video::blit_surface($self->{surface}, $srcrect, $roto, SDL::Rect->new );
     $::RotoZoomer->rotoZoom( $roto, $self->{anim} * 5, 1, $::SmoothRotoZoom );
     $self->{rect}->x( $self->{rect}->x - ($roto->width  - 64) / 2 );
     $self->{rect}->y( $self->{rect}->y - ($roto->height - 64) / 2 );
@@ -2249,7 +2249,7 @@ sub new {
     'h' => 42,
     'selected' => 0,
     'filled' => 0,
-    'fillcolor' => new SDL::Color(0, 0, 128),
+    'fillcolor' => SDL::Color->new(0, 0, 128),
     'parameter' => 0,
     'tooltip' => [ @_[4 .. $#_] ],
   );
@@ -2394,7 +2394,7 @@ package GameTimer;
 use vars qw($FirstTick $LastTick $TotalAdvances $LastFpsTick $LastFps $Fps);
 
 sub ResetTimer {
-  $FirstTick      = SDL::Time::get_ticks();
+  $FirstTick      = SDL::get_ticks();
   $LastTick       = $LastFpsTick = $FirstTick;
   $TotalAdvances  = 0;
   $Fps            = $LastFps = 0;
@@ -2403,7 +2403,7 @@ sub ResetTimer {
 sub GetAdvances {
   my ($ticks, $advance);
 
-  $ticks          = SDL::Time::get_ticks();
+  $ticks          = SDL::get_ticks();
   $advance        = int(($ticks - $FirstTick) / 10) - $TotalAdvances;
   $TotalAdvances += $advance;
   
@@ -2708,8 +2708,8 @@ sub RenderBorder {
   $height = $ScreenHeight + 2 * $ScreenMargin;
 
   # Draw the corners
-  $dstrect  = new SDL::Rect(0, 0, 16, 16);
-  $srcrect1 = new SDL::Rect(0, 0, 16, 16);
+  $dstrect  = SDL::Rect->new(0, 0, 16, 16);
+  $srcrect1 = SDL::Rect->new(0, 0, 16, 16);
   SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
   $dstrect->x($width - 16); $srcrect1->x(144);
   SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
@@ -2722,7 +2722,7 @@ sub RenderBorder {
     # Top border
     my $zoom = new SDL::Surface(SDL_SWSURFACE(), 128, 16, 32);
     $srcrect1->x(16); $srcrect1->y(0); $srcrect1->width(128); $srcrect1->height(16);
-    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect(0, 0, 0, 0) );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0, 0, 0, 0) );
     $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
     $dstrect->x(16); $dstrect->y(0);
     SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
@@ -2730,7 +2730,7 @@ sub RenderBorder {
     # Left border
     $zoom = new SDL::Surface(SDL_SWSURFACE(), 16, 128, 32);
     $srcrect1->x(0); $srcrect1->y(16); $srcrect1->height(128); $srcrect1->width(16);
-    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect(0, 0, 0, 0) );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0, 0, 0, 0) );
     $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
     $dstrect->x(0); $dstrect->y(16);
     SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
@@ -2739,7 +2739,7 @@ sub RenderBorder {
   # Draw top and bottom border
 
   $srcrect1->w(128); $srcrect1->x(16); $srcrect1->y(0);
-  $srcrect2 = new SDL::Rect( 16, 144, 128, 16 );
+  $srcrect2 = SDL::Rect->new( 16, 144, 128, 16 );
   for ($xpos = 16; $xpos < $width-16; ) {
     $dstrect->x($xpos);
     $dstrect->y(0);
@@ -2770,7 +2770,7 @@ sub RenderBorder {
   	# Top border
     my $zoom = new SDL::Surface(SDL_SWSURFACE(), 128, 16, 32);
     $srcrect1->x(16); $srcrect1->y(0); $srcrect1->w(128); $srcrect1->h(16);
-    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect(0,0,0,0) );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0,0,0,0) );
     $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
     $dstrect->x(16); $dstrect->y(0);
     SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
@@ -2778,7 +2778,7 @@ sub RenderBorder {
     # Left border
     $zoom = new SDL::Surface( SDL_SWSURFACE(), 16, 128, 32);
     $srcrect1->x(0); $srcrect1->y(16); $srcrect1->h(128); $srcrect1->w(16);
-    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, new SDL::Rect(0,0,0,0) );
+    SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0,0,0,0) );
     $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
     $dstrect->x(0); $dstrect->y(16);
     SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
@@ -2789,10 +2789,10 @@ sub LoadBackground {
   my $filename = shift;
   my ($backgroundImage, $srcrect, $dstrect);
   
-  SDL::Video::fill_rect($Background, new SDL::Rect(0, 0, $PhysicalScreenWidth, $PhysicalScreenHeight), new SDL::Color(0, 0, 0) );
+  SDL::Video::fill_rect($Background, SDL::Rect->new(0, 0, $PhysicalScreenWidth, $PhysicalScreenHeight), SDL::Color->new(0, 0, 0) );
   $backgroundImage = SDL::Image::load("$DataDir/$filename");
-  $dstrect         = new SDL::Rect($ScreenMargin, $ScreenMargin, 0, 0);
-  $srcrect         = new SDL::Rect(0, 0, $ScreenWidth, $ScreenHeight);
+  $dstrect         = SDL::Rect->new($ScreenMargin, $ScreenMargin, 0, 0);
+  $srcrect         = SDL::Rect->new(0, 0, $ScreenWidth, $ScreenHeight);
   if ($ScreenWidth != $backgroundImage->w() or $ScreenHeight != $backgroundImage->h()) {
     if ($::RotoZoomer) {
       my $zoomX        = $ScreenWidth  / $backgroundImage->w(); # $zoomX = 1.0 if $zoomX < 1.0;
@@ -3271,7 +3271,7 @@ sub LayoutScoreBoard {
     $::Players[$i]->{scoreX} = $leftMargin + ($i % $guysPerRow) * $widthPerGuy;
     $::Players[$i]->{scoreY} = $scoreBoardTop + int ($i / $guysPerRow) * $rowHeight;
     $::Players[$i]->{scoreRect} = 
-      new SDL::Rect(-x => $::Players[$i]->{scoreX}, -y => $::Players[$i]->{scoreY}, -width=> 130, -height=> $rowHeight);
+       SDL::Rect->new($::Players[$i]->{scoreX}, $::Players[$i]->{scoreY},  130, $rowHeight);
   }
   $self->{scoreBoardTop} = $scoreBoardTop;
   $self->{scoreBoardHeight} = $scoreBoardHeight;
@@ -3282,8 +3282,8 @@ sub LayoutScoreBoard {
 sub DrawLevelIndicator {
   my ($self, $x, $y) = @_;
   
-  $self->{levelIndicatorRect} = new SDL::Rect($x, $y, 100, 32) unless $self->{levelIndicatorRect};
-  SDL::Video::fill_rect($::App, $self->{levelIndicatorRect}, new SDL::Color(0, 0, 0) );
+  $self->{levelIndicatorRect} = SDL::Rect->new($x, $y, 100, 32) unless $self->{levelIndicatorRect};
+  SDL::Video::fill_rect($::App, $self->{levelIndicatorRect}, SDL::Color->new(0, 0, 0) );
   SDLx::TTF::print_text( $::App, $x, $y + 3, 'Level ' . ($self->{level}+1) );
 
 }
@@ -3293,8 +3293,8 @@ sub PrintNumber {
   my ($numberText, $i, $srcrect, $dstrect);
 
   $numberText = sprintf("%d", $number);
-  $srcrect = new SDL::Rect(0, 160, 16, 16);
-  $dstrect = new SDL::Rect($x, $y, 16, 16);
+  $srcrect = SDL::Rect->new(0, 160, 16, 16);
+  $dstrect = SDL::Rect->new($x, $y, 16, 16);
   for ($i = 0; $i < length($numberText); ++$i) {
     $srcrect->x(320 + (ord(substr($numberText, $i)) - ord('0')) * 16);
     $dstrect->x($x + $i * 16);
@@ -3306,16 +3306,16 @@ sub DrawScore {
   my ($self, $player, $x, $y, $livesY) = @_;
   my ($i, $srcrect, $dstrect);
   
-  $::App->fill($player->{scoreRect}, new SDL::Color(0, 0, 0));
+  SDL::Video::fill_rect( $::App,$player->{scoreRect}, SDL::Color->new(0, 0, 0));
   $self->PrintNumber( $player, $x, $y, $player->{score});
   
   $livesY = $self->{rowHeight} > 32 ? $y + 24 : $y + 16;
   
-  $dstrect = new SDL::Rect($x, $livesY, 32, 32);
+  $dstrect = SDL::Rect->new($x, $livesY, 32, 32);
   if ($self->{rowHeight} <=32) {
-    $srcrect = new SDL::Rect(320, 176, 16, 16);
+    $srcrect = SDL::Rect->new(320, 176, 16, 16);
   } else {
-    $srcrect = new SDL::Rect(320, 128, 32, 32);
+    $srcrect = SDL::Rect->new(320, 128, 32, 32);
   }
   
   if ($player->{lives} > 3) {
@@ -3410,11 +3410,11 @@ sub Run {
       $self->AdvanceGame();
     }
     if ($self->{playersalive} <= 0) {
-      my $gameoverSurface = new SDL::Surface(-name => "$::DataDir/gameover.png");
+      my $gameoverSurface = SDL::Image::load("$::DataDir/gameover.png");
       my @gameObjects = @::GameObjects;
       foreach (@gameObjects) { $_->Delete() if ('DeadGuy' eq ref $_); }
       $self->DrawGame();
-      SDL::Video::blit_surface($gameoverSurface, 0, $::App, new SDL::Rect(($::PhysicalScreenWidth - $gameoverSurface->width) / 2, $::PhysicalScreenHeight / 2 - 100, 0, 0));
+      SDL::Video::blit_surface($gameoverSurface, 0, $::App, SDL::Rect->new(($::PhysicalScreenWidth - $gameoverSurface->w) / 2, $::PhysicalScreenHeight / 2 - 100, 0, 0));
       $::App->sync();
       SDL::delay(1000);
       for (my $i=0; $i < 20; ++$i) {
@@ -3559,10 +3559,10 @@ sub OnBallPopped {
 sub DrawLevelIndicator {
   my ($self, $x, $y) = @_;
   
-  $self->{levelIndicatorRect} = new SDL::Rect($x, $y, 140, $self->{scoreBoardHeight}) unless $self->{levelIndicatorRect};
-  $::App->fill( $self->{levelIndicatorRect}, new SDL::Color() );
-  SDL::Video::blit_surface($::LevelIndicatorSurface2, 0, $::App, new SDL::Rect($x, $y, 0, 0));
-  SDL::Video::blit_surface($::LevelIndicatorSurface, new SDL::Rect(0, 0, 130 * $self->{leveladvance} / 17, 30), $::App, new SDL::Rect($x, $y, 130 * $self->{leveladvance} / 17, 30));
+  $self->{levelIndicatorRect} = SDL::Rect->new($x, $y, 140, $self->{scoreBoardHeight}) unless $self->{levelIndicatorRect};
+  SDL::Video::fill_rect( $::App, $self->{levelIndicatorRect}, SDL::Color->new(0,0,0) );
+  SDL::Video::blit_surface($::LevelIndicatorSurface2, 0, $::App, SDL::Rect->new($x, $y, 0, 0));
+  SDL::Video::blit_surface($::LevelIndicatorSurface, SDL::Rect->new(0, 0, 130 * $self->{leveladvance} / 17, 30), $::App, SDL::Rect->new($x, $y, 130 * $self->{leveladvance} / 17, 30));
   SDLx::TTF::print_text( $::App, $x + 25, $y + 3, 'Level ' . ($self->{level}+1) );
 
   SDLx::TTF::print_text( $::App, $x, $y + 40, sprintf('spd: %d/%d', $::GameSpeed * 100, $self->{leveldesc}->{spawndelay}) ) if $self->{scoreBoardHeight} >= 64;
@@ -3890,7 +3890,7 @@ sub DisplayMessage {
     $::App->sync();
     last if $len > length($message) + 15;
   }
-  SDL::Video::blit_surface($::Background, new SDL::Rect(0, $y, $::PhysicalScreenWidth, $y, 40), $::App, new SDL::Rect(0, $y, 0, 0));
+  SDL::Video::blit_surface($::Background, SDL::Rect->new(0, $y, $::PhysicalScreenWidth, $y, 40), $::App, SDL::Rect->new(0, $y, 0, 0));
 }
 
 
@@ -3977,7 +3977,7 @@ sub DrawScoreBoard {
 	  SDLx::TTF::print_text(   $::App, $x, $y, "Press F to fast forward" );
 
   } return;
-  SDL::Video::fill_rect($::App, new SDL::Rect(0, $y, $::PhysicalScreenWidth, $::PhysicalScreenHeight - $y), new SDL::Color(0, 0, 0) );
+  SDL::Video::fill_rect($::App, SDL::Rect->new(0, $y, $::PhysicalScreenWidth, $::PhysicalScreenHeight - $y), SDL::Color->new(0, 0, 0) );
   SDLx::TTF::print_text( $::App, $x, $y, $self->{recordpointer} );
 
 }
@@ -4013,14 +4013,14 @@ sub ShowTooltip {
   
   $::ScoreFont->use();
   ($y, $yinc) = ($::ScreenHeight + 35, 20);
-  $rect = new SDL::Rect(0, -$y, $::PhysicalScreenWidth, $::PhysicalScreenWidth - $y );
-  $::Background->fill($rect, new SDL::Color(0,0,0) );
+  $rect = SDL::Rect->new(0, -$y, $::PhysicalScreenWidth, $::PhysicalScreenWidth - $y );
+  SDL::Video::fill_rect( $::Background,$rect, SDL::Color->new(0,0,0) );
   foreach (@lines) {
 	  SDLx::TTF::print_text(   $::Background, 10, $y, $_ ) if $y + $yinc < $::PhysicalScreenHeight;
 
     $y += $yinc;
   }
-  $rect = new SDL::Rect( 0, $::ScreenHeight + 35, $::PhysicalScreenWidth, $::PhysicalScreenWidth - $y );
+  $rect = SDL::Rect->new( 0, $::ScreenHeight + 35, $::PhysicalScreenWidth, $::PhysicalScreenWidth - $y );
   SDL::Video::blit_surface($::Background, $rect, $::App, $rect);
   $::MenuFont->use();
 }
@@ -4679,7 +4679,7 @@ sub Run {
 
   $self->{title} = new MenuItem( 300,  60, "PANG ZERO" );
   $self->{title}->{filled} = 1;
-  $self->{title}->{fillcolor} = new SDL::Color(0, 128, 255);
+  $self->{title}->{fillcolor} = SDL::Color->new(0, 128, 255);
   $self->{title}->Center();
 
   push @::GameObjects, (
@@ -4744,7 +4744,7 @@ sub Pause {
   my $pausedSurface = SDL::Image::load("$DataDir/paused.png");
   my $event         = new SDL::Event;
 
-  SDL::Video::blit_surface($pausedSurface, 0, $App, new SDL::Rect(($PhysicalScreenWidth - $pausedSurface->width) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
+  SDL::Video::blit_surface($pausedSurface, 0, $App, SDL::Rect->new(($PhysicalScreenWidth - $pausedSurface->width) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
   $App->sync();
   $::Keys = (); $::Events = ();
   while (1) { # Paused, wait for keypress
