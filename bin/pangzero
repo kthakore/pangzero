@@ -1146,7 +1146,7 @@ sub Draw {
   }
   $dstrect = SDL::Rect->new(
     $self->{x} + $::ScreenMargin + ($self->{w} - $srcrect->w()) / 2, 
-    $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->h()) / 2 + 2, 0, 0);
+    $self->{y} + $::ScreenMargin + ($self->{h} - $srcrect->h()) / 2 + 2, $srcrect->w, $srcrect->h);
   SDL::Video::blit_surface($guySurface, $srcrect, $::App, $dstrect);
 }
 
@@ -2616,7 +2616,6 @@ sub LoadSurfaces {
     $BallSurfaces{$_} = SDL::Image::load("$DataDir/$balls{$_}");
     $transparentColor = $BallSurfaces{$_}->get_pixel(0);
     SDL::Video::set_color_key($BallSurfaces{$_}, SDL_SRCCOLORKEY, $transparentColor );
-    # print join(' ', $_, "\t", $transparentColor->r, $transparentColor->g, $transparentColor->b), "\n";
     $BallSurfaces{$_} = SDL::Video::display_format($BallSurfaces{$_});
     $BallSurfaces{"dark$_"} = SDL::Image::load( "$DataDir/$balls{$_}");
     SDL::Video::set_color_key($BallSurfaces{"dark$_"}, SDL_SRCCOLORKEY, $BallSurfaces{"dark$_"}->get_pixel(0) );
