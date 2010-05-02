@@ -80,7 +80,9 @@ use SDL::Video;
 use SDL::Event;
 use SDL::Events;
 use SDL::Color;
+use SDL::Config;
 use SDL::Cursor;
+use SDL::GFX::Rotozoom;
 use SDL::Mixer;
 use SDL::Mixer::Samples;
 use SDL::Mixer::Channels;
@@ -2165,22 +2167,23 @@ sub Advance {
 }
 
 sub Draw {
-  my $self = shift;
-  my ($srcrect);
+	my $self = shift;
+	my ($srcrect);
 
-  $srcrect = SDL::Rect->new(($self->{speedX} > 0 ? 0 : 64), 128, 64, 64 );
-  $self->TransferRect();
-  if ($::RotoZoomer) {
-    my $roto = new SDL::Surface( SDL_SWSURFACE(), 64, 64, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
-    SDL::Video::blit_surface($self->{surface}, $srcrect, $roto, SDL::Rect->new );
-    $::RotoZoomer->rotoZoom( $roto, $self->{anim} * 5, 1, $::SmoothRotoZoom );
-    $self->{rect}->x( $self->{rect}->x - ($roto->width  - 64) / 2 );
-    $self->{rect}->y( $self->{rect}->y - ($roto->height - 64) / 2 );
-    SDL::Video::blit_surface($roto, 0, $::App, $self->{rect} );
-    return;
-  } else {
-    SDL::Video::blit_surface($self->{surface}, $srcrect, $::App, $self->{rect} );
-  }
+	$srcrect = SDL::Rect->new(($self->{speedX} > 0 ? 0 : 64), 128, 64, 64 );
+	$self->TransferRect();
+	if(SDL::Config->has('SDL_gfx_rotozoom')) {
+		my $roto = new SDL::Surface( SDL::Video::SDL_SWSURFACE(), 64, 64, 32, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+		SDL::Video::blit_surface($self->{surface}, $srcrect, $roto, SDL::Rect->new(0, 0, $roto->w, $roto->h) );
+		SDL::GFX::Rotozoom::surface($roto, $self->{anim} * 5, 1, SDL::GFX::Rotozoom::SMOOTHING_OFF());
+		$self->{rect}->x( $self->{rect}->x - ($roto->w  - 64) / 2 );
+		$self->{rect}->y( $self->{rect}->y - ($roto->h - 64) / 2 );
+		SDL::Video::blit_surface($roto, SDL::Rect->new(0, 0, 64, 64), $::App, $self->{rect} );
+		return;
+	}
+	else {
+		SDL::Video::blit_surface($self->{surface}, $srcrect, $::App, $self->{rect} );
+	}
 }
 
 
@@ -2717,22 +2720,22 @@ sub RenderBorder {
   $dstrect->x(0); $srcrect1->x(0);
   SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
   
-  if ($::RotoZoomer) {
+  if(SDL::Config->has('SDL_gfx_rotozoom')) {
     # Top border
     my $zoom = new SDL::Surface(SDL_SWSURFACE(), 128, 16, 32);
-    $srcrect1->x(16); $srcrect1->y(0); $srcrect1->width(128); $srcrect1->height(16);
+    $srcrect1->x(16); $srcrect1->y(0); $srcrect1->w(128); $srcrect1->h(16);
     SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0, 0, 0, 0) );
-    $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
+	$zoom = SDL::GFX::Rotozoom::zoom_surface($zoom, $ScreenWidth / 128, 1, SDL::GFX::Rotozoom::SMOOTHING_OFF());
     $dstrect->x(16); $dstrect->y(0);
-    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, SDL::Rect->new(0, 0, $zoom->w, $zoom->h), $targetSurface, $dstrect );
     
     # Left border
     $zoom = new SDL::Surface(SDL_SWSURFACE(), 16, 128, 32);
-    $srcrect1->x(0); $srcrect1->y(16); $srcrect1->height(128); $srcrect1->width(16);
+    $srcrect1->x(0); $srcrect1->y(16); $srcrect1->h(128); $srcrect1->w(16);
     SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0, 0, 0, 0) );
-    $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
+	$zoom = SDL::GFX::Rotozoom::zoom_surface($zoom, 1, $ScreenHeight / 128, SDL::GFX::Rotozoom::SMOOTHING_OFF());
     $dstrect->x(0); $dstrect->y(16);
-    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, SDL::Rect->new(0, 0, $zoom->w, $zoom->h), $targetSurface, $dstrect );
   }
 
   # Draw top and bottom border
@@ -2765,22 +2768,22 @@ sub RenderBorder {
     $srcrect2->h(16); $srcrect2->y(128);
   }
 
-  if ($::RotoZoomer) {
+  if(SDL::Config->has('SDL_gfx_rotozoom')) {
   	# Top border
-    my $zoom = new SDL::Surface(SDL_SWSURFACE(), 128, 16, 32);
+    my $zoom = new SDL::Surface(SDL::Video::SDL_SWSURFACE(), 128, 16, 32);
     $srcrect1->x(16); $srcrect1->y(0); $srcrect1->w(128); $srcrect1->h(16);
     SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0,0,0,0) );
-    $::RotoZoomer->zoom( $zoom, $ScreenWidth / 128, 1, $::SmoothRotoZoom);
+	$zoom = SDL::GFX::Rotozoom::zoom_surface($zoom, $ScreenWidth / 128, 1, SDL::GFX::Rotozoom::SMOOTHING_OFF());
     $dstrect->x(16); $dstrect->y(0);
-    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, SDL::Rect->new(0, 0, $zoom->w, $zoom->h), $targetSurface, $dstrect );
     
     # Left border
     $zoom = new SDL::Surface( SDL_SWSURFACE(), 16, 128, 32);
     $srcrect1->x(0); $srcrect1->y(16); $srcrect1->h(128); $srcrect1->w(16);
     SDL::Video::blit_surface($borderSurface, $srcrect1, $zoom, SDL::Rect->new(0,0,0,0) );
-    $::RotoZoomer->zoom( $zoom, 1, $ScreenHeight / 128, $::SmoothRotoZoom);
+	$zoom = SDL::GFX::Rotozoom::zoom_surface($zoom, 1, $ScreenHeight / 128, SDL::GFX::Rotozoom::SMOOTHING_OFF());
     $dstrect->x(0); $dstrect->y(16);
-    SDL::Video::blit_surface($zoom, 0, $targetSurface, $dstrect );
+    SDL::Video::blit_surface($zoom, SDL::Rect->new(0, 0, $zoom->w, $zoom->h), $targetSurface, $dstrect );
   }
 }
 
@@ -2793,10 +2796,10 @@ sub LoadBackground {
   $dstrect         = SDL::Rect->new($ScreenMargin, $ScreenMargin, 0, 0);
   $srcrect         = SDL::Rect->new(0, 0, $ScreenWidth, $ScreenHeight);
   if ($ScreenWidth != $backgroundImage->w() or $ScreenHeight != $backgroundImage->h()) {
-    if ($::RotoZoomer) {
+    if (SDL::Config->has('SDL_gfx_rotozoom')) {
       my $zoomX        = $ScreenWidth  / $backgroundImage->w(); # $zoomX = 1.0 if $zoomX < 1.0;
       my $zoomY        = $ScreenHeight / $backgroundImage->h(); # $zoomY = 1.0 if $zoomY < 1.0;
-      $backgroundImage = $::RotoZoomer->zoom($backgroundImage, $zoomX, $zoomY, $::SmoothRotoZoom);
+	  $backgroundImage = SDL::GFX::Rotozoom::zoom_surface($backgroundImage, $zoomX, $zoomY, SDL::GFX::Rotozoom::SMOOTHING_OFF());
     }
   }
   SDL::Video::blit_surface($backgroundImage, $srcrect, $Background, $dstrect);
@@ -4743,7 +4746,7 @@ sub Pause {
   my $pausedSurface = SDL::Image::load("$DataDir/paused.png");
   my $event         = new SDL::Event;
 
-  SDL::Video::blit_surface($pausedSurface, 0, $App, SDL::Rect->new(($PhysicalScreenWidth - $pausedSurface->width) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
+  SDL::Video::blit_surface($pausedSurface, 0, $App, SDL::Rect->new(($PhysicalScreenWidth - $pausedSurface->w) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
   $App->sync();
   $::Keys = (); $::Events = ();
   while (1) { # Paused, wait for keypress
@@ -4900,8 +4903,6 @@ sub Initialize {
     #-fullscreen => $FullScreen,
   );
   
-  eval( 'use SDL::Tool::Graphic; $RotoZoomer = new SDL::Tool::Graphic; $::SmoothRotoZoom = 0;' );  # Detect if zoom / rotozoom works
-
   &SDL::Mouse::show_cursor(0);
 
   $Background = SDL::Surface->new(( &IsMicrosoftWindows ? SDL_SWSURFACE : SDL_HWSURFACE ), $App->w, $App->h, 16);
