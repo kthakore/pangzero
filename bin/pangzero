@@ -559,7 +559,7 @@ sub InputPlayerName {
   my ($player, $message) = @_;
   my ($guy, $name, $nameMenuItem, @menuItems, $x, $y, $yInc);
   
-  SDL::EnableUnicode(1); $UnicodeMode = 1;
+  SDL::Events::enable_unicode(1); $UnicodeMode = 1;
   $name = ($player->{name} or '') . '|';
   
   $guy = new Guy($player);
@@ -597,7 +597,7 @@ sub InputPlayerName {
   $name = "Anonymous" if $name =~ /^\s*$/;
   $guy->Delete();
   foreach (@menuItems) { $_->Delete(); }
-  SDL::EnableUnicode(0); $UnicodeMode = 0;
+  SDL::Events::enable_unicode(0); $UnicodeMode = 0;
   return $name;
 }
 
