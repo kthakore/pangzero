@@ -46,13 +46,13 @@ sub LoadSurfaces {
   
   foreach (sort keys %balls) {
     $Games::PangZero::BallSurfaces{$_} = SDL::Image::load("$Games::PangZero::DataDir/$balls{$_}");
+    $Games::PangZero::BallSurfaces{$_} = SDL::Video::display_format($Games::PangZero::BallSurfaces{$_});
     $transparentColor = $Games::PangZero::BallSurfaces{$_}->get_pixel(0);
     SDL::Video::set_color_key($Games::PangZero::BallSurfaces{$_}, SDL_SRCCOLORKEY, $transparentColor );
-    $Games::PangZero::BallSurfaces{$_} = SDL::Video::display_format($Games::PangZero::BallSurfaces{$_});
     $Games::PangZero::BallSurfaces{"dark$_"} = SDL::Image::load( "$Games::PangZero::DataDir/$balls{$_}");
+    $Games::PangZero::BallSurfaces{"dark$_"} = SDL::Video::display_format($Games::PangZero::BallSurfaces{"dark$_"});
     SDL::Video::set_color_key($Games::PangZero::BallSurfaces{"dark$_"}, SDL_SRCCOLORKEY, $Games::PangZero::BallSurfaces{"dark$_"}->get_pixel(0) );
     SDL::Video::set_alpha($Games::PangZero::BallSurfaces{"dark$_"}, SDL_SRCALPHA, 128);
-    $Games::PangZero::BallSurfaces{"dark$_"} = SDL::Video::display_format($Games::PangZero::BallSurfaces{"dark$_"});
   }
 
   $Games::PangZero::BorderSurface          = SDL::Image::load("$Games::PangZero::DataDir/border.png");
