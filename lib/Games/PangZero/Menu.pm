@@ -2,6 +2,7 @@
 package Games::PangZero::Menu;
 ##########################################################################
 
+use SDL::Events;
 use Games::PangZero::FpsIndicator;
 use Games::PangZero::MenuItem;
 
@@ -104,7 +105,7 @@ sub HandleUpDownKeys {
 
 sub KeyToText {
   my ($key) = @_;
-  eval("Games::PangZero::SDLK_$_() eq $key") and return ucfirst(lc($_)) foreach @syms;
+  eval("SDLK_$_ eq $key") and return ucfirst(lc($_)) foreach @syms;
   print "No match for $key\n";
   return "???";
 }
