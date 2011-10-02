@@ -43,22 +43,34 @@ sub GetConfigFilename {
 
 sub GetConfigVars {
   my ($i, $j);
-  my @result = qw(NumGuys DifficultyLevelIndex WeaponDurationIndex Slippery MusicEnabled SoundEnabled FullScreen ShowWebsite
-    DeathBallsEnabled EarthquakeBallsEnabled WaterBallsEnabled SeekerBallsEnabled);
-  for ($i=0; $i < scalar @Players; ++$i) {
+  my @result = qw(
+    Games::PangZero::NumGuys
+    Games::PangZero::DifficultyLevelIndex
+    Games::PangZero::WeaponDurationIndex
+    Games::PangZero::Slippery
+    Games::PangZero::MusicEnabled
+    Games::PangZero::SoundEnabled
+    Games::PangZero::FullScreen
+    Games::PangZero::ShowWebsite
+    Games::PangZero::DeathBallsEnabled
+    Games::PangZero::EarthquakeBallsEnabled
+    Games::PangZero::WaterBallsEnabled
+    Games::PangZero::SeekerBallsEnabled
+  );
+  for ($i=0; $i < scalar @Games::PangZero::Players; ++$i) {
     for ($j=0; $j < 3; ++$j) {
-      push @result, ("Players[$i]->{keys}->[$j]");
+      push @result, ("Games::PangZero::Players[$i]->{keys}->[$j]");
     }
-    push @result, ("Players[$i]->{colorindex}");
-    push @result, ("Players[$i]->{imagefileindex}");
+    push @result, ("Games::PangZero::Players[$i]->{colorindex}");
+    push @result, ("Games::PangZero::Players[$i]->{imagefileindex}");
   }
   my ($difficulty, $gameMode);
-  for ($difficulty=0; $difficulty < scalar @DifficultyLevels; ++$difficulty) {
+  for ($difficulty=0; $difficulty < scalar @Games::PangZero::DifficultyLevels; ++$difficulty) {
     foreach $gameMode ('highScoreTablePan', 'highLevelTablePan', 'highScoreTableCha', 'highLevelTableCha') {
       next if ($Games::PangZero::DifficultyLevels[$difficulty]->{name} eq 'Miki' and $gameMode eq 'highScoreTableCha');
       for ($i=0; $i < 5; ++$i) {
-        push @result, "DifficultyLevels[$difficulty]->{$gameMode}->[$i]->[0]", # Name of high score
-                      "DifficultyLevels[$difficulty]->{$gameMode}->[$i]->[1]", # High score
+        push @result, "Games::PangZero::DifficultyLevels[$difficulty]->{$gameMode}->[$i]->[0]", # Name of high score
+                      "Games::PangZero::DifficultyLevels[$difficulty]->{$gameMode}->[$i]->[1]", # High score
       }
     }
   }
@@ -71,8 +83,8 @@ sub SaveConfig {
 
   open CONFIG, "> $filename" or return;
   foreach $varname (GetConfigVars()) {
-    eval("\$value = \$varname"); die $@ if $@;
-    print CONFIG "$varname = $value\n";
+    eval("\$value = \$$varname"); die $@ if $@;
+    print CONFIG "\$$varname = $value\n";
   }
   close CONFIG;
 }
