@@ -103,7 +103,7 @@ sub LoadConfig {
     my $pattern = $varname;
     $pattern =~ s/\[/\\[/g;
     if ($text =~ /$pattern = (.+?)$/m) {
-      eval( "\$varname = '$1'" );
+      eval( "\$$varname = '$1'" );
     }
   }
   SetDifficultyLevel($Games::PangZero::DifficultyLevelIndex);

@@ -109,6 +109,7 @@ use vars qw (
   $UnicodeMode $LastUnicodeKey %Keys %Events %MenuEvents );
 
 
+use Games::PangZero::Globals;
 use Games::PangZero::GameObject;
 use Games::PangZero::Ball;
 use Games::PangZero::BonusDrop;
@@ -129,7 +130,6 @@ use Games::PangZero::FpsIndicator;
 use Games::PangZero::FragileBall;
 use Games::PangZero::GamePause;
 use Games::PangZero::GameTimer;
-use Games::PangZero::Globals;
 use Games::PangZero::Graphics;
 use Games::PangZero::Guy;
 use Games::PangZero::Harpoon;
