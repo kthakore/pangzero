@@ -62,10 +62,12 @@ sub LoadSurfaces {
   $Games::PangZero::LevelIndicatorSurface  = SDL::Image::load("$Games::PangZero::DataDir/level.png");
   $Games::PangZero::LevelIndicatorSurface2 = SDL::Image::load("$Games::PangZero::DataDir/level_empty.png");
 
-  &AlterPalette( $Games::PangZero::RedBorderSurface, sub { 1; },
-    sub { shift @_; my ($h, $s, $i) = &RgbToHsi(@_); return &HsiToRgb( $h - 30, $s, $i * 0.75 + 63); } );
-  &AlterPalette( $Games::PangZero::WhiteBorderSurface, sub { 1; },
-    sub { shift @_; my ($h, $s, $i) = &RgbToHsi(@_); return &HsiToRgb( 0, 0, $i*0.25 + 191 ); } );
+  AlterPalette( $Games::PangZero::RedBorderSurface, sub { 1; },
+    sub { shift @_; my ($h, $s, $i) = Games::PangZero::Palette::RgbToHsi(@_);
+    return Games::PangZero::Palette::HsiToRgb( $h - 30, $s, $i * 0.75 + 63); } );
+  AlterPalette( $Games::PangZero::WhiteBorderSurface, sub { 1; },
+    sub { shift @_; my ($h, $s, $i) = Games::PangZero::Palette::RgbToHsi(@_);
+    return Games::PangZero::Palette::HsiToRgb( 0, 0, $i*0.25 + 191 ); } );
   
   MakeGuySurfaces();
 }
@@ -81,18 +83,18 @@ sub MakeGuySurface {
   $player->{hue}        = $Games::PangZero::GuyColors[$player->{colorindex}]->[0];
   $player->{saturation} = $Games::PangZero::GuyColors[$player->{colorindex}]->[1];
   
-  &AlterPalette($whiteGuySurface, sub {1;}, sub { return (255, 255, 255); } );
-  &AlterPalette( $guySurface, sub { $_[3] > $_[2] and $_[3] > $_[1]; },
+  AlterPalette($whiteGuySurface, sub {1;}, sub { return (255, 255, 255); } );
+  AlterPalette( $guySurface, sub { $_[3] > $_[2] and $_[3] > $_[1]; },
     sub {
       shift @_;
-      my ($h, $s, $i) = &RgbToHsi(@_);
-      return &HsiToRgb($player->{hue}, $player->{saturation}, $i); }
+      my ($h, $s, $i) = Games::PangZero::Palette::RgbToHsi(@_);
+      return Games::PangZero::Palette::HsiToRgb($player->{hue}, $player->{saturation}, $i); }
   );
-  &AlterPalette( $harpoonSurface, sub { 1; },
+  AlterPalette( $harpoonSurface, sub { 1; },
     sub {
       shift @_;
-      my ($h, $s, $i) = &RgbToHsi(@_);
-      return &HsiToRgb($player->{hue}, $player->{saturation} * $s / 256, $i); }
+      my ($h, $s, $i) = Games::PangZero::Palette::RgbToHsi(@_);
+      return Games::PangZero::Palette::HsiToRgb($player->{hue}, $player->{saturation} * $s / 256, $i); }
   );
   $player->{guySurface}      = $guySurface;
   $player->{whiteGuySurface} = $whiteGuySurface;
@@ -105,30 +107,30 @@ sub MakeGuySurfaces {
   }
   
   $Games::PangZero::WhiteHarpoonSurface = SDL::Image::load("$Games::PangZero::DataDir/harpoon.png");
-  &AlterPalette($Games::PangZero::WhiteHarpoonSurface, sub {1;}, sub { return (255, 255, 255); } );
+  AlterPalette($Games::PangZero::WhiteHarpoonSurface, sub {1;}, sub { return (255, 255, 255); } );
 }
 
 sub AlterPalette() {
-#  my ($surface, $filterSub, $alterSub) = @_;
-#  my ($r, $g, $b);
-#  my ($palette, $numColors, $n, $color);
+  my ($surface, $filterSub, $alterSub) = @_;
+  my ($r, $g, $b);
+  my ($palette, $numColors, $n, $color);
 
-#  $palette   = $surface->format->palette();
-#  $numColors = ($surface->format->BytesPerPixel == 1) ? $palette->ncolors() : -1;
-  # for ($n = 0; $n < $numColors; $n++) {
-  # $color       = $palette->color_index($n);
-  # ($r, $g, $b) = ( $color->r, $color->g, $color->b );
+  $palette   = $surface->format->palette();
+  $numColors = ($surface->format->BytesPerPixel == 1) ? $palette->ncolors() : -1;
+  for ($n = 0; $n < $numColors; $n++) {
+    $color       = $palette->color_index($n);
+    ($r, $g, $b) = ( $color->r, $color->g, $color->b );
 
-  # next unless $filterSub->($n, $r, $g, $b);
-  # ($r, $g, $b) = $alterSub->($n, $r, $g, $b);
-  # $r = $g = $b = 4 if ($r == 0 and $g == 0 and $b == 0);
+    next unless $filterSub->($n, $r, $g, $b);
+    ($r, $g, $b) = $alterSub->($n, $r, $g, $b);
+    $r = $g = $b = 4 if ($r == 0 and $g == 0 and $b == 0);
 
-#	$color->r($r);
-#	$color->g($g);
-#	$color->b($b);
-#	SDL::Video::set_colors($surface, $n, $color);
-  # }
-#  $surface = SDL::Video::display_format($surface);
+    $color->r($r);
+    $color->g($g);
+    $color->b($b);
+    SDL::Video::set_colors($surface, $n, $color);
+  }
+  $surface = SDL::Video::display_format($surface);
 }
 
 sub RenderBorder {
