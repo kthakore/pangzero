@@ -2808,8 +2808,8 @@ sub LoadBackground {
 }
 
 sub TextWidth {
-  if (defined(&SDL::App::SDL_TEXTWIDTH)) {
-    SDL::App::SDL_TEXTWIDTH(@_);   # perl-sdl-1.x
+  if (defined(&SDLx::App::SDL_TEXTWIDTH)) {
+    SDLx::App::SDL_TEXTWIDTH(@_);   # perl-sdl-1.x
   } else {
     SDLx::SFont::SDL_TEXTWIDTH(@_); # perl-sdl-2.x
   }
@@ -4900,12 +4900,12 @@ sub Initialize {
   ($PhysicalScreenWidth, $PhysicalScreenHeight) = &FindVideoMode();
   ($PhysicalScreenWidth, $PhysicalScreenHeight) = (640, 480);
 
-  $App = new SDL::App(
-    -flags => $sdlFlags,
-    -title => "Pang Zero $::Version",
-    -icon => "$DataDir/icon.png",
-    -width => $PhysicalScreenWidth,
-    -height => $PhysicalScreenHeight,
+  $App = SDLx::App->new(
+    flags => $sdlFlags,
+    title => "Pang Zero $::Version",
+    icon => "$DataDir/icon.png",
+    width => $PhysicalScreenWidth,
+    height => $PhysicalScreenHeight,
     #-fullscreen => $FullScreen,
   );
   
