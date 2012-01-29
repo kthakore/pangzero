@@ -12,14 +12,14 @@ sub new {
   my ($class, $x, $y, $text) = @_;
   my $self                   = Games::PangZero::GameObject->new();
   %{$self}                   = ( %{$self},
-    'targetX' => $x,
-    'targetY' => $y,
-    'h' => 42,
-    'selected' => 0,
-    'filled' => 0,
+    'targetX'   => $x,
+    'targetY'   => $y,
+    'h'         => 42,
+    'selected'  => 0,
+    'filled'    => 0,
     'fillcolor' => SDL::Color->new(0, 0, 128),
     'parameter' => 0,
-    'tooltip' => [ @_[4 .. $#_] ],
+    'tooltip'   => [ @_[4 .. $#_] ],
   );
   bless $self, $class;
   $self->SetText($text);
@@ -59,7 +59,7 @@ sub Delete {
 
 sub ApproachingSpeed {
   my ($position, $speed, $target) = @_;
-    
+
   if ($position + $speed * abs($speed / $Gravity) / 2 > $target) {
     return $speed - $Gravity;
   } else {
@@ -69,7 +69,7 @@ sub ApproachingSpeed {
 
 sub Advance {
   my $self = shift;
-  
+
   if ('entering' eq $self->{state}) {
     $self->{x}     += $self->{speedX};
     $self->{y}     += $self->{speedY};
@@ -100,7 +100,6 @@ sub Draw {
     SDL::Video::fill_rect($Games::PangZero::App, $self->{rect}, $self->{fillcolor});
   }
   SDLx::SFont::print_text( $Games::PangZero::App,$self->{x} + 5 +$Games::PangZero::ScreenMargin, $self->{y} + $Games::PangZero::ScreenMargin, $self->{text});
-
 }
 
 sub SetInitialSpeed {
@@ -144,7 +143,7 @@ sub Select {
 
 sub CanSelect {
   my ($self) = @_;
-  
+
   return $self->{state} =~ /(?:entering|shown)/;
 }
 

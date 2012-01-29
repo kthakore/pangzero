@@ -27,7 +27,7 @@ sub Rand {
 
 sub Delay {
   my ($self, $ticks) = @_;
-  
+
   while ($ticks > 0) {
     my $advance       = $self->CalculateAdvances();
     %Games::PangZero::Events = ();
@@ -43,7 +43,7 @@ sub SetGameSpeed {
 
 sub SetBackground {
   my ($self, $backgroundIndex) = @_;
-  
+
   return if $backgroundIndex >= scalar( @{$self->{backgrounds}} );
   Games::PangZero::Graphics::LoadBackground($self->{backgrounds}->[$backgroundIndex]);
   SDL::Video::blit_surface($Games::PangZero::Background, SDL::Rect->new(0, 0, $Games::PangZero::App->w, $Games::PangZero::App->h), $Games::PangZero::App, SDL::Rect->new(0, 0, $Games::PangZero::App->w, $Games::PangZero::App->h));
@@ -53,10 +53,10 @@ sub ShowTooltip {
 }
 
 sub ResetGame {
-  my $self               = shift;
+  my $self                      = shift;
   @Games::PangZero::GameObjects = ();
-  %Guy::Guys             = ();
-  %Harpoon::Harpoons     = ();
+  %Guy::Guys                    = ();
+  %Harpoon::Harpoons            = ();
   $Games::PangZero::GamePause   = 0;
   %Games::PangZero::GameEvents  = ();
   $self->SetBackground(0);
@@ -101,7 +101,7 @@ sub DrawGame {
   $Games::PangZero::App->sync();
 }
 
-sub DrawScoreBoard() {
+sub DrawScoreBoard {
 }
 
 1;

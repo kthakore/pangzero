@@ -28,8 +28,8 @@ use SDLx::SFont;
 
 sub LoadSurfaces {
   my ($i, $transparentColor);
-  
-  my %balls = qw ( 
+
+  my %balls = qw (
   ball0 Balls-Red128.png ball1 Balls-Red96.png ball2 Balls-Red64.png ball3 Balls-Red32.png ball4 Balls-Red16.png
   xmas Balls-XMAS128.png
   ball4 Balls-Red16.png ball3 Balls-Red32.png
@@ -43,7 +43,7 @@ sub LoadSurfaces {
   quake2 Balls-EarthQ64.png quake3 Balls-EarthQ32.png quake4 Balls-EarthQ16.png
   upside0 Balls-Upside128.png upside1 Balls-Upside96.png upside2 Balls-Upside64.png upside3 Balls-Upside32.png upside4 Balls-Upside16.png
   );
-  
+
   foreach (sort keys %balls) {
     $Games::PangZero::BallSurfaces{$_} = SDL::Image::load("$Games::PangZero::DataDir/$balls{$_}");
     $Games::PangZero::BallSurfaces{$_} = SDL::Video::display_format($Games::PangZero::BallSurfaces{$_});
@@ -68,21 +68,21 @@ sub LoadSurfaces {
   AlterPalette( $Games::PangZero::WhiteBorderSurface, sub { 1; },
     sub { shift @_; my ($h, $s, $i) = Games::PangZero::Palette::RgbToHsi(@_);
     return Games::PangZero::Palette::HsiToRgb( 0, 0, $i*0.25 + 191 ); } );
-  
+
   MakeGuySurfaces();
 }
 
 sub MakeGuySurface {
   my ($player) = @_;
   my ($guySurfaceFile, $guySurface, $whiteGuySurface, $harpoonSurface);
-  
+
   $guySurfaceFile       = $Games::PangZero::DataDir . '/' . $Games::PangZero::GuyImageFiles[ $player->{imagefileindex} % scalar(@Games::PangZero::GuyImageFiles) ];
   $guySurface           = SDL::Image::load($guySurfaceFile);
   $whiteGuySurface      = SDL::Image::load($guySurfaceFile);
   $harpoonSurface       = SDL::Image::load("$Games::PangZero::DataDir/harpoon.png");
   $player->{hue}        = $Games::PangZero::GuyColors[$player->{colorindex}]->[0];
   $player->{saturation} = $Games::PangZero::GuyColors[$player->{colorindex}]->[1];
-  
+
   AlterPalette($whiteGuySurface, sub {1;}, sub { return (255, 255, 255); } );
   AlterPalette( $guySurface, sub { $_[3] > $_[2] and $_[3] > $_[1]; },
     sub {
@@ -105,12 +105,12 @@ sub MakeGuySurfaces {
   foreach my $player (@Games::PangZero::Players) {
     MakeGuySurface($player);
   }
-  
+
   $Games::PangZero::WhiteHarpoonSurface = SDL::Image::load("$Games::PangZero::DataDir/harpoon.png");
   AlterPalette($Games::PangZero::WhiteHarpoonSurface, sub {1;}, sub { return (255, 255, 255); } );
 }
 
-sub AlterPalette() {
+sub AlterPalette {
   my ($surface, $filterSub, $alterSub) = @_;
   my ($r, $g, $b);
   my ($palette, $numColors, $n, $color);
@@ -136,7 +136,7 @@ sub AlterPalette() {
 sub RenderBorder {
   my ($borderSurface, $targetSurface) = @_;
   my ($dstrect, $srcrect1, $srcrect2, $xpos, $ypos, $width, $height);
-  
+
   $width  = $Games::PangZero::ScreenWidth  + 2 * $Games::PangZero::ScreenMargin;
   $height = $Games::PangZero::ScreenHeight + 2 * $Games::PangZero::ScreenMargin;
 
@@ -150,7 +150,7 @@ sub RenderBorder {
   SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
   $dstrect->x(0); $srcrect1->x(0);
   SDL::Video::blit_surface($borderSurface, $srcrect1, $targetSurface, $dstrect);
-  
+
   if(SDL::Config->has('SDL_gfx_rotozoom')) {
     # Top border
     my $zoom = SDL::Surface->new(SDL_SWSURFACE(), 128, 16, 32);
@@ -159,7 +159,7 @@ sub RenderBorder {
     $zoom = SDL::GFX::Rotozoom::zoom_surface($zoom, $Games::PangZero::ScreenWidth / 128, 1, SDL::GFX::Rotozoom::SMOOTHING_OFF());
     $dstrect->x(16); $dstrect->y(0);
     SDL::Video::blit_surface($zoom, SDL::Rect->new(0, 0, $zoom->w, $zoom->h), $targetSurface, $dstrect );
-    
+
     # Left border
     $zoom = SDL::Surface->new(SDL_SWSURFACE(), 16, 128, 32);
     $srcrect1->x(0); $srcrect1->y(16); $srcrect1->h(128); $srcrect1->w(16);
@@ -207,7 +207,7 @@ sub RenderBorder {
     $zoom = SDL::GFX::Rotozoom::zoom_surface($zoom, $Games::PangZero::ScreenWidth / 128, 1, SDL::GFX::Rotozoom::SMOOTHING_OFF());
     $dstrect->x(16); $dstrect->y(0);
     SDL::Video::blit_surface($zoom, SDL::Rect->new(0, 0, $zoom->w, $zoom->h), $targetSurface, $dstrect );
-    
+
     # Left border
     $zoom = SDL::Surface->new( SDL_SWSURFACE(), 16, 128, 32);
     $srcrect1->x(0); $srcrect1->y(16); $srcrect1->h(128); $srcrect1->w(16);
@@ -220,7 +220,7 @@ sub RenderBorder {
 
 sub LoadBackground {
   my $filename = shift;
-  
+
   SDL::Video::fill_rect($Games::PangZero::Background, SDL::Rect->new(0, 0, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight), SDL::Color->new(0, 0, 0) );
   my $backgroundImage = SDL::Image::load("$Games::PangZero::DataDir/$filename");
   my $dstrect         = SDL::Rect->new($Games::PangZero::ScreenMargin, $Games::PangZero::ScreenMargin, 0, 0);
@@ -233,7 +233,7 @@ sub LoadBackground {
     }
   }
   SDL::Video::blit_surface($backgroundImage, $srcrect, $Games::PangZero::Background, $dstrect);
-  
+
   RenderBorder($Games::PangZero::BorderSurface, $Games::PangZero::Background);
 }
 
@@ -245,7 +245,7 @@ sub FindVideoMode {
   if ($Games::PangZero::FullScreen < 2) {
     return (800, 600);
   }
-  
+
   # Find a suitable widescreen mode
   # One native resolution:   1680 x 1050 => 1.6  : 1
   # Which could translate to: 840 x 525  => 1.6  : 1
@@ -253,7 +253,7 @@ sub FindVideoMode {
   #                           720 x 480  => 1.5  : 1
   #                           800 x 512  => 1.56 : 1
   # Conclusion: Any resolution where w in [800,900], h > 480 and r in [1.5, 1.8] is good
-  
+
   my ($modes, $mode, @goodModes, $w, $h, $ratio);
   $modes = SDL::ListModes( 0, SDL_HWSURFACE ); #add back fullscreen
   foreach $mode (@{$modes}) {
@@ -263,7 +263,7 @@ sub FindVideoMode {
     warn sprintf( "%4d x %4d => %0.3f\n", $w, $h, $ratio );
     next if $w < 800 or $w > 900;
     next if $h < 480;
-    next if $ratio < 1.5 or $ratio > 1.8; 
+    next if $ratio < 1.5 or $ratio > 1.8;
     push @goodModes, ( { -w => $w, -h => $h, -score => abs($ratio - 1.6) * 1000 + abs($w - 800) } );
   }
   @goodModes = sort { $a->{-score} <=> $b->{-score} } @goodModes;
