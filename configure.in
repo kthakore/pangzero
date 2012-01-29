@@ -1,4 +1,0 @@
-AC_INIT(configure.in)
-AM_INIT_AUTOMAKE(pangzero, 1.3)
-UPI_CHECK_SDL_PERL()
-AC_OUTPUT([Makefile bin/Makefile data/Makefile])
