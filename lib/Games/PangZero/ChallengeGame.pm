@@ -18,7 +18,7 @@ sub new {
 sub CreateLevelNumberSurface {
   my ($level) = @_;
   my ($surface, $w);
-  
+
   $Games::PangZero::GlossyFont->use();
   $w       = Games::PangZero::Graphics::TextWidth("Level $level");
   $surface = SDL::Surface->new(SDL_SWSURFACE(), $w+6, 48, 32);
@@ -36,14 +36,14 @@ sub SetGameLevel {
   $level             = $#Games::PangZero::ChallengeLevels if $level > $#Games::PangZero::ChallengeLevels;
   $self->{challenge} = $Games::PangZero::ChallengeLevels[$level];
   $self->SpawnChallenge();
-  
+
   my ($levelObject, $surface);
   $levelObject            = Games::PangZero::GameObject->new();
   $surface                = CreateLevelNumberSurface($level + 1);
   $levelObject->{surface} = $surface;
   $levelObject->{w}       = $surface->w();
   $levelObject->{h}       = $surface->h();
-  $levelObject->{x}       = ($Games::PangZero::ScreenWidth - $levelObject->{w}) / 2;
+  $levelObject->{x}       = ($Games::PangZero::ScreenWidth  - $levelObject->{w}) / 2;
   $levelObject->{y}       = ($Games::PangZero::ScreenHeight - $levelObject->{h}) / 2;
   $levelObject->{draw}    = sub { my $self = shift; SDL::Video::blit_surface($self->{surface},
                                                                              SDL::Rect->new(0, 0, $self->{surface}->w, $self->{surface}->h),
@@ -70,7 +70,7 @@ sub AdvanceGameObjects {
 sub SpawnChallenge {
   my $self = shift;
   my ($challenge, @guys, $balldesc, $ball, $hasBonus, %balls, $numBalls, $ballsSpawned, @ballKeys, $x);
-  
+
   @guys = $self->PopEveryBall();
   foreach (@guys) {
     $_->{bonusDelay} = 1;
@@ -80,7 +80,7 @@ sub SpawnChallenge {
   delete $Games::PangZero::GameEvents{magic};
   $challenge = $self->{challenge};
   die unless $challenge;
-  
+
   while ($challenge =~ /(\w+)/g) {
     $balldesc = $Games::PangZero::BallDesc{$1};
     warn "Unknown ball in challenge: $1" unless $balldesc;
@@ -109,7 +109,7 @@ sub SpawnChallenge {
 sub OnBallPopped {
   my $self = shift;
   my ($i);
-  
+
   for ($i = $#Games::PangZero::GameObjects; $i >= 0; --$i) {
     if ($Games::PangZero::GameObjects[$i]->isa('Games::PangZero::Ball')) {
       return;

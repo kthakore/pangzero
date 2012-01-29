@@ -26,7 +26,7 @@ sub ShowTooltip {
   my (@lines, $y, $yinc, $rect);
 
   @lines = @_;
-  @lines = ("Pang Zero $Games::PangZero::Version (C) 2006 by UPi (upi\@sourceforge.net)",
+  @lines = ("Pang Zero $Games::PangZero::VERSION (C) 2006 by UPi (upi\@sourceforge.net)",
     "Use cursor keys to navigate menu, Enter to select",
     "P pauses the game, Esc quits") unless scalar @lines;
 
@@ -396,7 +396,7 @@ sub UpdateOptionsMenu {
   $self->{menuItems}->[4]->SetParameter( $Games::PangZero::MusicEnabled ? 'on' : 'off');
   $self->{menuItems}->[5]->SetText('< ' . ('Windowed', 'Fullscreen', 'Widescreen')[$Games::PangZero::FullScreen]
     . ($self->{restart} ? ' (requires restart)' : '') . ' >');
-  $self->{menuItems}->[6]->SetParameter( $Games::PangZero::ShowWebsite eq $Games::PangZero::Version ? 'no' : 'yes' );
+  $self->{menuItems}->[6]->SetParameter( $Games::PangZero::ShowWebsite eq $Games::PangZero::VERSION ? 'no' : 'yes' );
 }
 
 sub RunOptionsMenu {
@@ -440,7 +440,7 @@ sub RunOptionsMenu {
       } elsif ($self->{currentItemIndex} == 4) {
         Games::PangZero::SetMusicEnabled(1 - $Games::PangZero::MusicEnabled); $self->UpdateOptionsMenu();
       } elsif ($self->{currentItemIndex} == 6) {
-        $Games::PangZero::ShowWebsite = ($Games::PangZero::ShowWebsite eq $Games::PangZero::Version ? 0 : $Games::PangZero::Version); $self->UpdateOptionsMenu();
+        $Games::PangZero::ShowWebsite = ($Games::PangZero::ShowWebsite eq $Games::PangZero::Version ? 0 : $Games::PangZero::VERSION); $self->UpdateOptionsMenu();
       }
     }
   }
@@ -673,7 +673,7 @@ sub Run {
   $self->ResetGame();
   $Games::PangZero::ScoreFont->use();
   ($y, $yinc) = ($Games::PangZero::ScreenHeight + 15, 20);
-  SDLx::SFont::print_text( $Games::PangZero::Background, 10, $y += $yinc, "Pang Zero $Games::PangZero::Version (C) 2006 by UPi (upi\@sourceforge.net)" ) if $y + $yinc * 2 < $Games::PangZero::PhysicalScreenHeight;
+  SDLx::SFont::print_text( $Games::PangZero::Background, 10, $y += $yinc, "Pang Zero $Games::PangZero::VERSION (C) 2006 by UPi (upi\@sourceforge.net)" ) if $y + $yinc * 2 < $Games::PangZero::PhysicalScreenHeight;
 
   SDLx::SFont::print_text( $Games::PangZero::Background, 10, $y += $yinc, "Use cursor keys to navigate menu, Enter to select" )           if $y + $yinc * 2 < $Games::PangZero::PhysicalScreenHeight;
 

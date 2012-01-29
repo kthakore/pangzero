@@ -45,8 +45,8 @@ $Games::PangZero::NumGuys = 1;
   { 'keys'  => [SDLK_KP6, SDLK_KP4, SDLK_KP5], },   # purple
 );
 @Games::PangZero::GuyImageFiles = ( 'guyChristmas.png', 'guy_danigm.png', 'guy_pix.png', 'guy_pux.png', 'guy_r2.png', 'guy_sonic.png' );
-@Games::PangZero::GuyColors     = ( [170, 255, 'blue'], [0, 255, 'red'], [85, 255, 'green'], [212, 255, 'pink'],
-                             [42, 255, 'yellow'], [128, 255, 'cyan'], [128, 0, 'gray'], [113, 128, 'snot'], [212, 64, 'purple'] );
+@Games::PangZero::GuyColors     = ( [170, 255, 'blue'],   [  0, 255, 'red'],  [ 85, 255, 'green'], [212, 255, 'pink'],
+                                    [ 42, 255, 'yellow'], [128, 255, 'cyan'], [128,   0, 'gray'],  [113, 128, 'snot'], [212, 64, 'purple'] );
 for (my $i=0; $i<=$#Games::PangZero::Players; ++$i) {
   $Games::PangZero::Players[$i]->{number} = $i;
   $Games::PangZero::Players[$i]->{colorindex} = $i;
@@ -117,8 +117,8 @@ my %n4 = ('popIndex' => 4, 'rect' => SDL::Rect->new(0, 0,  16,  15));
 );
 {
   foreach my $ballDesc (@Games::PangZero::BallDesc) {
-    $ballDesc->{width}  = $ballDesc->{rect}->w();
-    $ballDesc->{height} = $ballDesc->{rect}->h();
+    $ballDesc->{width}                            = $ballDesc->{rect}->w();
+    $ballDesc->{height}                           = $ballDesc->{rect}->h();
     $Games::PangZero::BallDesc{$ballDesc->{name}} = $ballDesc;
   }
   foreach my $ballDesc (@Games::PangZero::BallDesc) {
@@ -209,8 +209,8 @@ sub AddLevels {
 
   for ($i = 0; $i < $num; ++$i) {
     $level = {
-      'balls' => $balls,
-      'gamespeed' => $gamespeedStart + ($gamespeedEnd - $gamespeedStart) * ($i) / ($num),
+      'balls'      => $balls,
+      'gamespeed'  => $gamespeedStart  + ($gamespeedEnd  - $gamespeedStart)  * ($i) / ($num),
       'spawndelay' => $spawndelayStart + ($spawndelayEnd - $spawndelayStart) * ($i) / ($num),
     };
     push @Games::PangZero::PanicLevels, ( $level );

@@ -35,7 +35,7 @@ sub ResetGame {
 
 sub SetGameSpeed {
   my $self = shift;
-  
+
   $Games::PangZero::GameSpeed = 0.8 * $Games::PangZero::DifficultyLevel->{speed};
 }
 
@@ -88,7 +88,7 @@ sub RespawnPlayers {
 
 sub PlayerNextLife {
   my ($self, $guy) = @_;
-  
+
   $guy->DeleteHarpoons;
   if ($guy->{player}->{lives}--) {
     $guy->{x}              = $guy->{player}->{startX};
@@ -146,7 +146,7 @@ sub PlayerDeathSequence {
   foreach $guy (@killedGuys) {
     $self->PlayerNextLife($guy);
   }
-  
+
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::BorderSurface, $Games::PangZero::App);
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::BorderSurface, $Games::PangZero::Background);
 }
@@ -183,7 +183,7 @@ sub DeathballMeltdown {
     $self->{nocollision} = 1;
   my $meltdown         = Games::PangZero::Meltdown->new();
   push @Games::PangZero::GameObjects, $meltdown;
-  
+
   for ($i = 0; $i < 300; ++$i) {
     %Games::PangZero::Events = ();
     Games::PangZero::HandleEvents();
@@ -206,11 +206,11 @@ sub DeathballMeltdown {
     }
     $self->DrawGame();
   }
-  
+
   foreach (@killedGuys) {
     $self->PlayerNextLife($_);
   }
-  
+
   $self->{nocollision} = 0;
 }
 
@@ -221,7 +221,7 @@ sub DeathballMeltdown {
 
 sub DrawScoreBoard {
   my ($self) = @_;
-  
+
   $self->DrawLevelIndicator( 10, $self->{scoreBoardTop} );
   for (my $i = 0; $i < $Games::PangZero::NumGuys; ++$i) {
     $self->DrawScore( $Games::PangZero::Players[$i], $Games::PangZero::Players[$i]->{scoreX}, $Games::PangZero::Players[$i]->{scoreY} );
@@ -236,22 +236,22 @@ sub LayoutScoreBoard {
   my $leftMargin       = 150;
   my $rows             = $Games::PangZero::NumGuys > 4 ? 2 : 1;
   $rows                = 1 if ($scoreBoardTop + $rows * $rowHeight > $Games::PangZero::PhysicalScreenHeight);
-  
+
   if ($scoreBoardTop + $rows * $rowHeight > $Games::PangZero::PhysicalScreenHeight) {
     $rowHeight     = 32;
     $scoreBoardTop = $Games::PangZero::PhysicalScreenHeight - 32;
   }
-  
+
   my $guysPerRow  = int ($Games::PangZero::NumGuys / $rows + 0.5);
   my $widthPerGuy = ($Games::PangZero::PhysicalScreenWidth - $leftMargin) / $guysPerRow;
-  
+
   for (my $i = 0; $i < $Games::PangZero::NumGuys; ++$i) {
     $Games::PangZero::Players[$i]->{scoreX}    = $leftMargin + ($i % $guysPerRow) * $widthPerGuy;
     $Games::PangZero::Players[$i]->{scoreY}    = $scoreBoardTop + int ($i / $guysPerRow) * $rowHeight;
-    $Games::PangZero::Players[$i]->{scoreRect} = 
+    $Games::PangZero::Players[$i]->{scoreRect} =
     SDL::Rect->new($Games::PangZero::Players[$i]->{scoreX}, $Games::PangZero::Players[$i]->{scoreY},  130, $rowHeight);
   }
-  
+
   $self->{scoreBoardTop}    = $scoreBoardTop;
   $self->{scoreBoardHeight} = $scoreBoardHeight;
   $self->{rowHeight}        = $rowHeight;
@@ -271,7 +271,7 @@ sub PrintNumber {
   my $numberText                       = sprintf("%d", $number);
   my $srcrect                          = SDL::Rect->new(0, 160, 16, 16);
   my $dstrect                          = SDL::Rect->new($x, $y, 16, 16);
-  
+
   for (my $i = 0; $i < length($numberText); ++$i) {
     $srcrect->x(320 + (ord(substr($numberText, $i)) - ord('0')) * 16);
     $dstrect->x($x + $i * 16);
@@ -281,16 +281,16 @@ sub PrintNumber {
 
 sub DrawScore {
   my ($self, $player, $x, $y, $livesY) = @_;
-  
-  SDL::Video::fill_rect( $Games::PangZero::App,$player->{scoreRect}, SDL::Color->new(0, 0, 0));
+
+  #SDL::Video::fill_rect( $Games::PangZero::App, $player->{scoreRect}, SDL::Color->new(0, 0, 0));
   $self->PrintNumber( $player, $x, $y, $player->{score});
-  
+
   $livesY     = $self->{rowHeight} > 32 ? $y + 24 : $y + 16;
   my $dstrect = SDL::Rect->new($x, $livesY, 32, 32);
   my $srcrect = ($self->{rowHeight} <= 32)
               ? SDL::Rect->new(320, 176, 16, 16)
               : SDL::Rect->new(320, 128, 32, 32);
-  
+
   if ($player->{lives} > 3) {
     SDL::Video::blit_surface($player->{guySurface}, $srcrect, $Games::PangZero::App, $dstrect );
     $self->PrintNumber( $player, $x + $srcrect->w() + 8, $livesY + ($srcrect->h() - 16 ) / 2, $player->{lives} );
@@ -305,7 +305,7 @@ sub DrawScore {
 sub PreAdvanceAction {}
 
 sub AdvanceGame {
-  my $self              = shift;
+  my $self                     = shift;
   %Games::PangZero::GameEvents = ();
   $self->PreAdvanceAction(); # Hook for something special
 
@@ -325,11 +325,11 @@ sub AdvanceGame {
       $guy->Earthquake($Games::PangZero::GameEvents{earthquake}) if ref $guy eq 'Games::PangZero::Guy';
     }
   }
-  
+
   if ($Games::PangZero::GameEvents{'pop'}) {
     Games::PangZero::Music::PlaySound('pop');
   }
-  
+
   if ($Games::PangZero::GameEvents{meltdown} and $Games::PangZero::DifficultyLevel->{name} ne 'Miki') {
     $self->DeathballMeltdown();
   } elsif ($Games::PangZero::GameEvents{kill} ) {
@@ -385,13 +385,13 @@ sub Run {
       return if $self->{abortgame};
       $self->AdvanceGame();
     }
-    
+
     if ($self->{playersalive} <= 0) {
       my $gameoverSurface = SDL::Image::load("$Games::PangZero::DataDir/gameover.png");
       my @gameObjects     = @Games::PangZero::GameObjects;
       foreach (@gameObjects) { $_->Delete() if ('Games::PangZero::DeadGuy' eq ref $_); }
       $self->DrawGame();
-      SDL::Video::blit_surface($gameoverSurface, SDL::Rect->new(0, 0, $gameoverSurface->w, $gameoverSurface->h), 
+      SDL::Video::blit_surface($gameoverSurface, SDL::Rect->new(0, 0, $gameoverSurface->w, $gameoverSurface->h),
                                $Games::PangZero::App, SDL::Rect->new(
                                  ($Games::PangZero::PhysicalScreenWidth - $gameoverSurface->w) / 2, $Games::PangZero::PhysicalScreenHeight / 2 - 100,
                                  $gameoverSurface->w, $gameoverSurface->h));

@@ -26,7 +26,7 @@ sub ResetGame {
 
 sub SetGameSpeed {
   my ($self) = @_;
-  
+
   $Games::PangZero::GameSpeed = $self->{leveldesc}->{gamespeed} * 0.8 * $Games::PangZero::DifficultyLevel->{speed};
 }
 
@@ -124,12 +124,12 @@ sub OnBallPopped {
 
 sub DrawLevelIndicator {
   my ($self, $x, $y) = @_;
-  
+
   $self->{levelIndicatorRect} = SDL::Rect->new($x, $y, 140, $self->{scoreBoardHeight}) unless $self->{levelIndicatorRect};
-  SDL::Video::fill_rect( $Games::PangZero::App, $self->{levelIndicatorRect}, SDL::Color->new(0,0,0) );
+  #SDL::Video::fill_rect( $Games::PangZero::App, $self->{levelIndicatorRect}, SDL::Color->new(0,0,0) );
   SDL::Video::blit_surface($Games::PangZero::LevelIndicatorSurface2, SDL::Rect->new($x, $y, $Games::PangZero::LevelIndicatorSurface2->w, $Games::PangZero::LevelIndicatorSurface2->h),
-                           $Games::PangZero::App,                    SDL::Rect->new($x, $y, $Games::PangZero::LevelIndicatorSurface2->w, $Games::PangZero::LevelIndicatorSurface2->h));
-  SDL::Video::blit_surface($Games::PangZero::LevelIndicatorSurface, SDL::Rect->new(0, 0, 130 * $self->{leveladvance} / 17, 30), $Games::PangZero::App, SDL::Rect->new($x, $y, 130 * $self->{leveladvance} / 17, 30));
+                           $Games::PangZero::App,                    SDL::Rect->new($x, $y, 0, 0));
+  SDL::Video::blit_surface($Games::PangZero::LevelIndicatorSurface, SDL::Rect->new(0, 0, 130 * $self->{leveladvance} / 17, 30), $Games::PangZero::App, SDL::Rect->new($x, $y, 0, 0));
   SDLx::SFont::print_text( $Games::PangZero::App, $x + 25, $y + 3, 'Level ' . ($self->{level}+1) );
 
   SDLx::SFont::print_text( $Games::PangZero::App, $x, $y + 40, sprintf('spd: %d/%d', $Games::PangZero::GameSpeed * 100, $self->{leveldesc}->{spawndelay}) ) if $self->{scoreBoardHeight} >= 64;

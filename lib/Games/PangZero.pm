@@ -1,7 +1,7 @@
 package Games::PangZero;
 
 $Cheat   = 0;
-$Version = '1.3';
+$VERSION = '1.3';
 $DataDir = '';  # Set it to a path to avoid autodetection (e.g. /opt/pangzero/data)
 
 =comment
@@ -88,7 +88,7 @@ use Carp;
 # SDL objects
 
 use vars qw (
-  $App $Version $RotoZoomer $Background $ScoreFont $MenuFont $GlossyFont
+  $App $VERSION $RotoZoomer $Background $ScoreFont $MenuFont $GlossyFont
   %BallSurfaces
   $BorderSurface $WhiteBorderSurface $RedBorderSurface $BonusSurface $LevelIndicatorSurface $LevelIndicatorSurface2
   $WhiteHarpoonSurface
@@ -216,7 +216,7 @@ sub HandleEvents {
       }
     }
     elsif ($type == SDL_KEYUP) {
-      my $keypressed               = $event->key_sym;
+      my $keypressed     = $event->key_sym;
       $Keys{$keypressed} = 0;
     }
   }
@@ -249,7 +249,7 @@ sub DoDemo {
     720 => "Use this time wisely!",
     1150 => "Making a lot of small balls is dangerous! Observe...",
     1600 => "Don't let the balloons touch you!",
-    1708 => "Dying gives you some free time.", 
+    1708 => "Dying gives you some free time.",
     1900 => "So does shooting the flashing balloons.",
     2370 => "The yellow Super Ball destroys every balloon",
     2650 => "And now... THE SPECIAL BALL DEMO!",
@@ -285,7 +285,7 @@ sub DoRecordDemo {
 
   $NumGuys = 1;
   Games::PangZero::Config::SetDifficultyLevel(3);
-  $Game = new Games::PangZero::DemoRecordGame;
+  $Game = Games::PangZero::DemoRecordGame->new();
   $Game->Run();
   print "\n\$record = '", $Game->{record}, "';\n";
   print "\$rand = [", join( ', ', @{$Game->{rand}} ), "];\n\n";
@@ -318,14 +318,14 @@ sub Initialize {
 
   $App = SDLx::App->new(
     flags      => $sdlFlags,
-    title      => "Pang Zero $Version",
+    title      => "Pang Zero $VERSION",
     icon       => "$DataDir/icon.png",
     width      => $PhysicalScreenWidth,
     height     => $PhysicalScreenHeight,
     #fullscreen => $FullScreen,
     delay      => 20
   );
-  
+
   SDL::Mouse::show_cursor(0);
 
   $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 16);
@@ -343,9 +343,8 @@ sub MainLoop {
   my $menuResult = DoMenu();
   if ($menuResult eq 'demo') {
     DoDemo();
-    return;
   }
-  
+
   #$Game = Games::PangZero::DemoRecordGame->new();
   $Game                         = ($menuResult eq 'challenge')
                                 ? Games::PangZero::ChallengeGame->new()
@@ -365,6 +364,7 @@ sub MainLoop {
   SDL::Video::blit_surface($Background, SDL::Rect->new(0, 0, $App->w, $App->h), $App, SDL::Rect->new(0, 0, $App->w, $App->h));
   $Games::PangZero::MenuFont->use();
   Games::PangZero::Highscore::MergeUnsavedHighScores($menuResult eq 'challenge' ? 'Cha' : 'Pan');
+
   return;
 
   my ($filename, $i) = ('', 1);
@@ -375,7 +375,7 @@ sub MainLoop {
     "WaterBallsEnabled = $WaterBallsEnabled;\nSeekerBallsEnabled = $SeekerBallsEnabled;\n",
     'rand = [', join(',', @{$Game->{rand}}), "];\n\n";
   close RECORD;
-  
+
   $Game = Games::PangZero::DemoPlaybackGame->new($NumGuys, $DifficultyLevelIndex, $Game->{record}, $Game->{rand}, {});
   $Game->Run();
   $Game->RestoreGameSettings();
@@ -383,9 +383,10 @@ sub MainLoop {
 
 sub ShowErrorMessage {
   my ($message) = @_;
-  
-  #eval("SDL::quit"); warn $@ if $@;
-  $message = "Pang Zero $Version died:\n$message";
+
+  return if $ENV{PANGZERO_TEST};
+
+  $message = "Pang Zero $VERSION died:\n$message";
   if (Games::PangZero::Config::IsMicrosoftWindows()) {
     eval( '
       use Win32;
@@ -408,8 +409,9 @@ sub ShowErrorMessage {
 
 sub ShowWebPage {
   my ($url) = @_;
-  
-  #eval("SDL::quit"); warn $@ if $@;
+
+  return if $ENV{PANGZERO_TEST};
+
   if (Games::PangZero::Config::IsMicrosoftWindows()) {
     my $ws = "$DataDir/website.html";
     $ws =~ s/\//\\\\/g;
@@ -428,7 +430,7 @@ sub ShowWebPage {
       return if $? == 0;
     }
   } else {
-    print "Visit $url for more info about Pang Zero $Games::PangZero::Version\n";
+    print "Visit $url for more info about Pang Zero $Games::PangZero::VERSION\n";
   }
 }
 

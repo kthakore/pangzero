@@ -41,14 +41,14 @@ sub new {
 
 sub Delete {
   my $self = shift;
-  
+
   $self->SUPER::Delete;
   delete $Guys{$self->{id}};
 }
 
 sub CalculateAnimPhases {
   my $self = shift;
-  
+
   $self->{animPhases} = $self->{player}->{guySurface}->w / 128,
 }
 
@@ -95,7 +95,7 @@ sub AdvanceWhileFlying {
 sub Advance {
   my ($self) = @_;
   my ($slippery, $keys);
-  
+
   $slippery = $Games::PangZero::Slippery ? 0.0625 : 0;
 
   return if $self->{killed};
@@ -111,7 +111,7 @@ sub Advance {
     $self->AdvanceWhileFlying();
     return;
   }
-  
+
   if ($self->{delay} > 0) {
     --$self->{delay};
     $keys = [ 0, 0, 0 ];
@@ -121,7 +121,7 @@ sub Advance {
 
   $self->{speedX} = 0 unless $slippery;
   $self->{state} = 'idle';
-  
+
   if ( $Games::PangZero::Events{$keys->[2]} ) {
     return if $self->Fire();
   }
@@ -195,9 +195,10 @@ sub Kill {
   return if $self->{invincible} > 0;
   $self->{justkilled} = 1;
   $Games::PangZero::GameEvents{'kill'} = 1;
+  print "player killed\n" if $ENV{PANGZERO_TEST};
 }
 
-sub Earthquake() {
+sub Earthquake {
   my ($self, $amplitude) = @_;
 
   return if $self->{state} eq 'fly';
