@@ -8,7 +8,7 @@ use warnings;
 
 sub new {
   my ($class) = @_;
-  my $self    = GameObject->new();
+  my $self    = Games::PangZero::GameObject->new();
   %{$self}    = ( %{$self},
     'timeout' => 1500, # Lasts for 15s
   );
