@@ -12,7 +12,7 @@ use vars qw(@syms);
 
 sub Exit {
   my $self = shift;
-  
+
   Games::PangZero::Config::SaveConfig();
   $self->SUPER::Exit();
 }
@@ -29,11 +29,11 @@ sub ShowTooltip {
   @lines = ("Pang Zero $Games::PangZero::Version (C) 2006 by UPi (upi\@sourceforge.net)",
     "Use cursor keys to navigate menu, Enter to select",
     "P pauses the game, Esc quits") unless scalar @lines;
-  
+
   $Games::PangZero::ScoreFont->use();
   ($y, $yinc) = ($Games::PangZero::ScreenHeight + 35, 20);
-  $rect = SDL::Rect->new(0, -$y, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenWidth - $y );
-  SDL::Video::fill_rect( $Games::PangZero::Background,$rect, SDL::Color->new(0,0,0) );
+  $rect       = SDL::Rect->new(0, $y, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight - $y );
+  SDL::Video::fill_rect( $Games::PangZero::Background, $rect, SDL::Color->new(0,0,0) );
   foreach (@lines) {
     SDLx::SFont::print_text(   $Games::PangZero::Background, 10, $y, $_ ) if $y + $yinc < $Games::PangZero::PhysicalScreenHeight;
 
@@ -72,12 +72,12 @@ sub SetCurrentItemIndex {
 sub EnterSubMenu {
   my $self = shift;
   my ($recall, $menuItem);
-  
+
   $recall->{oldItems} = $self->{menuItems};
   $recall->{oldCurrentItemIndex} = $self->{currentItemIndex};
   foreach $menuItem (@{$self->{menuItems}}) { $menuItem->Hide(); }
   $self->{menuItems} = [];
-  
+
   return $recall;
 }
 
@@ -126,14 +126,14 @@ sub RunTutorial {
   my %oldGuys        = %Guy::Guys;
   my %oldHarpoons    = %Harpoon::Harpoons;
   my $oldGame        = $Games::PangZero::Game;
-  
+
   $Games::PangZero::ScoreFont->use();
   $Games::PangZero::Game = Games::PangZero::TutorialGame->new;
   $Games::PangZero::Game->SetChallenge($ball);
   $Games::PangZero::Game->Run();
   $Games::PangZero::MenuFont->use();
   $self->SetGameSpeed();
-  
+
   foreach (@Games::PangZero::GameObjects) { $_->Clear(); }
   @Games::PangZero::GameObjects = @oldGameObjects;
   %Guy::Guys             = %oldGuys;
@@ -149,7 +149,7 @@ sub RunTutorialMenu {
   my $recall = $self->EnterSubMenu();
   $self->{title}->Hide();
   my $baseY = 50;
-  
+
   my @tutorials = (
     ['n2', 'Normal Ball', 'There is nothing special about this ball. Just keep shooting it.'],
     ['b0', 'Bouncy Ball', 'This ball bounces higher than the normal ball.', 'Otherwise it behaves the same.'],
@@ -162,11 +162,11 @@ sub RunTutorialMenu {
     ['u0', 'Upside Down Ball', 'This crazy ball bounces on the top of the screen.', 'Maybe it came from an alternate universe,', 'where gravity is negative?'],
     ['super0, n1', 'Super Ball', 'The Super Ball is your friend. It will still kill you on touch.', 'The green super ball will pause the game for 8 seconds.', 'The gold super ball will kill every ball.'],
   );
-  
+
   push @{$self->{menuItems}},
     Games::PangZero::MenuItem->new( 50, $baseY, "Back to main menu"),
     Games::PangZero::MenuItem->new( 50, $baseY += 40, "Run Demo" );
-  
+
   $baseY = 110;
   $baseX = 50;
   foreach (@tutorials) {
@@ -187,7 +187,7 @@ sub RunTutorialMenu {
     $self->MenuAdvance();
     last if $self->{abortgame};
     $self->HandleUpDownKeys();
-    
+
     if ($Games::PangZero::MenuEvents{LEFT} and $self->{currentItemIndex} > 1) {
       $self->SetCurrentItemIndex($self->{currentItemIndex} - 5);
     }
@@ -205,7 +205,7 @@ sub RunTutorialMenu {
       }
     }
   }
-  
+
   $self->LeaveSubMenu($recall);
   $self->{title}->Show();
 }
@@ -213,7 +213,7 @@ sub RunTutorialMenu {
 sub RunCredits {
   my ($self, $demo) = @_;
   my ($i, $ball, @balls);
-  
+
   my $time           = $self->{anim};
   my $recall         = $self->EnterSubMenu();
   my @oldGameObjects = @Games::PangZero::GameObjects;
@@ -232,7 +232,7 @@ sub RunCredits {
     Games::PangZero::MenuItem->new( 100, $y += $yinc * 1.5, "http://apocalypse.rulez.org/pangzero" ),
   );
   foreach $i (@{$self->{menuItems}}) { $i->Center(); }
-  
+
   for ($i = 0; $i < 20; ++$i) {
     $ball      = Games::PangZero::Ball::Spawn( $Games::PangZero::BallDesc{'credits1'}, 100, 1, 0 );
     $ball->{y} = $i * -5;
@@ -243,7 +243,7 @@ sub RunCredits {
   }
   push @Games::PangZero::GameObjects, @balls;
   push @Games::PangZero::GameObjects, (@{$self->{menuItems}});
-  
+
   while (1) {
     $self->MenuAdvance();
     last if $self->{abortgame};
@@ -252,7 +252,7 @@ sub RunCredits {
       last if $self->{anim} - $time > 20 * 100; # 30s
     }
   }
-  
+
   @Games::PangZero::GameObjects = @oldGameObjects;
   foreach (@balls) { $_->Delete(); }
   $self->LeaveSubMenu($recall);
@@ -284,11 +284,11 @@ sub RunHighScore {
     push @{$self->{menuItems}}, ( Games::PangZero::MenuItem->new( 700, $y, $_->[1] ) );
   }
   push @Games::PangZero::GameObjects, (@{$self->{menuItems}});
-  
+
   while (not $retval) {
     $self->MenuAdvance();
-    if ($self->{abortgame}) { 
-      $retval = 'abortgame'; last; 
+    if ($self->{abortgame}) {
+      $retval = 'abortgame'; last;
     }
     if ($auto) {
       $retval = 'next'      if ++$time > 100 * 6;
@@ -310,7 +310,7 @@ sub RunHighScore {
 sub RunHighScores {
   my ($self, $auto) = @_;
   my ($recall, $retval, $i, $table, @tables);
-  
+
   if ($auto) {
     $self->ShowTooltip();
   } else {
@@ -320,7 +320,7 @@ sub RunHighScores {
   $self->{title}->Hide();
   $table = 0;
   @tables = ( [0, 'Pan'], [0, 'Cha'], [1, 'Pan'], [1, 'Cha'], [2, 'Pan'], [2, 'Cha'], [3, 'Pan'], [3, 'Cha'], [4, 'Pan'] );
-  
+
   while (1) {
     $retval = $self->RunHighScore( @{$tables[$table]}, $auto );
     if ($retval eq 'next') {
@@ -334,7 +334,7 @@ sub RunHighScores {
       last;
     }
   }
-  
+
   $self->ShowTooltip();
   $self->{title}->Show();
   $self->LeaveSubMenu($recall);
@@ -352,7 +352,7 @@ sub UpdateBallMixerMenu {
 sub RunBallMixerMenu {
   my $self = shift;
   my ($recall);
-  
+
   $recall = $self->EnterSubMenu();
   my ($y, $yinc) = (110, 40);
   push @{$self->{menuItems}}, (
@@ -365,7 +365,7 @@ sub RunBallMixerMenu {
   $self->UpdateBallMixerMenu();
   push @Games::PangZero::GameObjects, (@{$self->{menuItems}});
   $self->SetCurrentItemIndex(0);
-  
+
   while (1) {
     $self->MenuAdvance();
     last if $self->{abortgame};
@@ -384,7 +384,7 @@ sub RunBallMixerMenu {
       }
     }
   }
-  
+
   $self->LeaveSubMenu($recall);
 }
 
@@ -415,7 +415,7 @@ sub RunOptionsMenu {
   $self->UpdateOptionsMenu();
   push @Games::PangZero::GameObjects, (@{$self->{menuItems}});
   $self->SetCurrentItemIndex(0);
-  
+
   while (1) {
     $self->MenuAdvance();
     last if $self->{abortgame};
@@ -444,7 +444,7 @@ sub RunOptionsMenu {
       }
     }
   }
-  
+
   $self->LeaveSubMenu($recall);
 }
 
@@ -470,7 +470,7 @@ sub RunControlsMenu {
   my $recall = $self->EnterSubMenu();
   $self->{title}->Hide();
   my $baseY = 50;
-  
+
   push @{$self->{menuItems}},
     Games::PangZero::MenuItem->new( 50, $baseY, "Back to main menu"),
     Games::PangZero::MenuItem->new( 18, $baseY += 40, "<>", "Use left and right key to set the number of players here.", "The more the merrier!", "Don't forget to set their keys below." );
@@ -526,7 +526,7 @@ sub RunControlsMenu {
           $keyMenuItem->SetText($prompts[$key]);
         }
       }
-      
+
       $keyMenuItem->SetText('Select character');
       my $guy   = Games::PangZero::Guy->new($player);
       $guy->{x} = $keyMenuItem->{targetX} + $keyMenuItem->{w} + 10;
@@ -555,7 +555,7 @@ sub RunControlsMenu {
           last;
         }
       }
-      
+
       $keyMenuItem->SetText('Select color');
       while (1) {
         $self->MenuAdvance();
@@ -577,7 +577,7 @@ sub RunControlsMenu {
           last;
         }
       }
-      
+
       endOfKeyEntry:
       $guy->Delete() if $guy;
       $self->{currentItem}->Show();
@@ -587,7 +587,7 @@ sub RunControlsMenu {
       $keyMenuItem->HideAndDelete;
     }
   }
-  
+
   foreach my $menuItem (@keysAsText) { $menuItem->HideAndDelete(); }
   $self->LeaveSubMenu($recall);
   $self->{title}->Show();
@@ -615,7 +615,7 @@ sub RunGameMenu {
   $self->UpdateGameMenu();
   push @Games::PangZero::GameObjects, (@{$self->{menuItems}});
   $self->SetCurrentItemIndex($Games::PangZero::LastGameMenuResult ? $Games::PangZero::LastGameMenuResult : 1);
-  
+
   while (1) {
     $self->MenuAdvance();
     last if $self->{abortgame};
@@ -651,14 +651,14 @@ sub RunGameMenu {
     }
     last if $self->{result};
   }
-  
+
   $Games::PangZero::LastGameMenuResult = $self->{currentItemIndex};
   $self->LeaveSubMenu($recall);
 }
 
 sub OnMenuIdle {
   my $self = shift;
-  
+
   ++$self->{idle};
   if    ($self->{idle} == 1) { $self->RunHighScores('auto'); }
   elsif ($self->{idle} == 2) { $self->RunCredits('demo'); }
@@ -680,7 +680,7 @@ sub Run {
   SDLx::SFont::print_text( $Games::PangZero::Background, 10, $y += $yinc, "P pauses the game, Esc quits" )                                if $y + $yinc * 2 < $Games::PangZero::PhysicalScreenHeight;
 
   SDL::Video::blit_surface($Games::PangZero::Background, SDL::Rect->new(0, 0, $Games::PangZero::App->w, $Games::PangZero::App->h), $Games::PangZero::App, SDL::Rect->new(0, 0, $Games::PangZero::App->w, $Games::PangZero::App->h));
-  
+
   $Games::PangZero::MenuFont->use();
   push @Games::PangZero::GameObjects, (Games::PangZero::FpsIndicator->new());
   $self->SetGameSpeed();
@@ -746,7 +746,7 @@ sub Run {
       }
     }
   }
-  
+
   $Games::PangZero::ScoreFont->use();
   return $self->{result};
 }
