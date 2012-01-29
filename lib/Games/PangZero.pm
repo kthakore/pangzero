@@ -310,11 +310,10 @@ sub Initialize {
   if (Games::PangZero::Config::IsMicrosoftWindows()) {
     $sdlFlags = SDL_ANYFORMAT;
   } else {
-    $sdlFlags = SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF | SDL_ANYFORMAT;
+    $sdlFlags = SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF | SDL_ANYFORMAT | SDL_FULLSCREEN;
   }
 
   ($PhysicalScreenWidth, $PhysicalScreenHeight) = Games::PangZero::Graphics::FindVideoMode();
-  #($PhysicalScreenWidth, $PhysicalScreenHeight) = (640, 480);
 
   $App = SDLx::App->new(
     flags      => $sdlFlags,
@@ -322,7 +321,7 @@ sub Initialize {
     icon       => "$DataDir/icon.png",
     width      => $PhysicalScreenWidth,
     height     => $PhysicalScreenHeight,
-    #fullscreen => $FullScreen,
+    fullscreen => $FullScreen,
     delay      => 20
   );
 

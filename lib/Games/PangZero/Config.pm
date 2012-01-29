@@ -4,6 +4,8 @@
 
 package Games::PangZero::Config;
 
+use File::ShareDir qw(dist_dir);
+
 sub IsMicrosoftWindows {
   return $^O eq 'MSWin32';
 }
@@ -15,7 +17,7 @@ sub TestDataDir {
 
 sub FindDataDir {
   return if $Games::PangZero::DataDir and TestDataDir();
-  my @guesses = qw( . .. /usr/share/pangzero /usr/share/games/pangzero /usr/local/share/pangzero /opt/pangzero/ /opt/pangzero);
+  my @guesses = ('.', dist_dir('Games-PangZero'));
   foreach my $guess (@guesses) {
     $Games::PangZero::DataDir = $guess;
     return if TestDataDir();
@@ -92,20 +94,30 @@ sub SaveConfig {
 sub LoadConfig {
   my ($filename, $text, $varname);
 
-  $text = '';
+  $text     = '';
   $filename = GetConfigFilename();
   if (open CONFIG, "$filename") {
     read CONFIG, $text, 16384;
     close CONFIG;
   }
-  
+
   foreach $varname (GetConfigVars()) {
     my $pattern = $varname;
-    $pattern =~ s/\[/\\[/g;
+    $pattern    =~ s/\[/\\[/g;
     if ($text =~ /$pattern = (.+?)$/m) {
-      eval( "\$$varname = '$1'" );
+      $val = $1;
+      if($val =~ /^SDLK_\w+$/) {
+        eval( "\$$varname = SDL::Events::$val()" );
+      }
+      elsif($val =~ /^[\d\.]+$/) {
+        eval( "\$$varname = $val" );
+      }
+      else {
+        eval( "\$$varname = '$val'" );
+      }
     }
   }
+
   SetDifficultyLevel($Games::PangZero::DifficultyLevelIndex);
   SetWeaponDuration($Games::PangZero::WeaponDurationIndex);
 }
