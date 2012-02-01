@@ -1,3 +1,8 @@
+2012-01-31 09:43 FROGGS
+    * ChangeLog, VERSION, *.p[l/m]: Bumped version to 1.4, making pangzero 
+      work with upstream release of SDL. Many fixes. 
+      See http://cpansearch.perl.org/src/FROGGS/SDL-2.536/CHANGELOG 
+
 2007-07-15 10:12  upi
 
 	* bin/upipang.pl: Proper website launching for Windows.  High level

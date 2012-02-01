@@ -1,7 +1,7 @@
 package Games::PangZero;
 
 $Cheat   = 0;
-$VERSION = '1.3';
+$VERSION = '1.4';
 $DataDir = '';  # Set it to a path to avoid autodetection (e.g. /opt/pangzero/data)
 
 =comment
