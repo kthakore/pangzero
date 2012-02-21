@@ -6,22 +6,6 @@ use warnings;
 use lib 'lib';
 use Games::PangZero;
 
-if($ENV{PANGZERO_TEST}) {
-  my $videodriver                                = $ENV{SDL_VIDEODRIVER};
-  $ENV{SDL_VIDEODRIVER}                          = 'dummy' if $ENV{'PANGZERO_TEST'};
-  Games::PangZero::Initialize();
-  $Games::PangZero::Game                         = Games::PangZero::PanicGame->new();
-  @Games::PangZero::Highscore::UnsavedHighScores = ();
-  $Games::PangZero::Game->Run();
-
-  if ($videodriver) {
-    $ENV{SDL_VIDEODRIVER} = $videodriver;
-  } else {
-    delete $ENV{SDL_VIDEODRIVER};
-  }
-
-  exit 0;
-}
 
 eval {
   Games::PangZero::Initialize();
