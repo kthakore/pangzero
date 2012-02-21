@@ -1,4 +1,4 @@
-2012-01-31 09:43 FROGGS
+2012-02-21 22:27 kthakore, FROGGS
     * ChangeLog, VERSION, *.p[l/m]: Bumped version to 1.4, making pangzero 
       work with upstream release of SDL. Many fixes. 
       See http://cpansearch.perl.org/src/FROGGS/SDL-2.536/CHANGELOG 
