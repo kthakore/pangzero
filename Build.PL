@@ -24,7 +24,8 @@ my $build = Module::Build->new(
   },
   meta_merge => {
     resources  => {
-      repository => 'http://github.com/kthakore/pangzero'
+        bugtracker => 'http://github.com/kthakore/pangzero/issues',
+        repository => 'http://github.com/kthakore/pangzero'
     }
   },
   share_dir => 'data',
