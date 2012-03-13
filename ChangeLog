@@ -1,6 +1,6 @@
 
 2012-03-12 19:42 FROGGS
-    * 1.401, fix for SDL's Joystick API
+    * 1.4.1, fix for SDL's Joystick API
 
 2012-02-21 22:27 kthakore, FROGGS
     * ChangeLog, VERSION, *.p[l/m]: Bumped version to 1.4, making pangzero
