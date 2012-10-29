@@ -7,12 +7,12 @@ use strict;
 use warnings;
 
 sub Create {
-  return PowerWire->new(@_);
+  return Games::PangZero::PowerWire->new(@_);
 }
 
 sub new {
   my $class = shift;
-  my $self  = Harpoon->new(@_);
+  my $self  = Games::PangZero::Harpoon->new(@_);
   %{$self}  = ( %{$self},
     'topdelay' => 200,
   );
