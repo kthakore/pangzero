@@ -282,7 +282,7 @@ sub PrintNumber {
 sub DrawScore {
   my ($self, $player, $x, $y, $livesY) = @_;
 
-  #SDL::Video::fill_rect($Games::PangZero::App, $player->{scoreRect}, SDL::Video::map_RGB($Games::PangZero::App->format(), 0, 0, 0));
+  SDL::Video::fill_rect($Games::PangZero::App, $player->{scoreRect}, SDL::Video::map_RGB($Games::PangZero::App->format(), 0, 0, 0));
   $self->PrintNumber( $player, $x, $y, $player->{score});
 
   $livesY     = $self->{rowHeight} > 32 ? $y + 24 : $y + 16;
