@@ -13,7 +13,7 @@ sub SpawnChildren {
 sub Pop {
   my $self          = shift;
   $self->SUPER::Pop(@_);
-  my $bonusdrop     = BonusDrop->new($self);
+  my $bonusdrop     = Games::PangZero::BonusDrop->new($self);
   my @collectedSubs = ( \&OnCollectedLife, \&OnCollectedScore, \&OnCollectedScore, \&OnCollectedInvulnerability, \&OnCollectedInvulnerability );
   if ($Games::PangZero::Game->Rand(2 * scalar @collectedSubs) < scalar @collectedSubs) {
     $bonusdrop->{desc} = { 'srcRect' => SDL::Rect->new(0, 0, 32, 32), };
