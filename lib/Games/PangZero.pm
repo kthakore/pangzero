@@ -212,6 +212,7 @@ sub HandleEvents {
         $MenuEvents{LEFT}    = 1 if $keypressed == SDLK_LEFT();
         $MenuEvents{RIGHT}   = 1 if $keypressed == SDLK_RIGHT();
         $MenuEvents{BUTTON}  = 1 if $keypressed == SDLK_RETURN();
+        $MenuEvents{BACKSP}  = 1 if $keypressed == SDLK_BACKSPACE;
         $LastUnicodeKey      = $event->key_unicode() if $UnicodeMode;
       }
     }
@@ -351,7 +352,7 @@ sub MainLoop {
   @Games::PangZero::Highscore::UnsavedHighScores = ();
   $Game->Run();
 
-  bless $Game, 'Menu';
+  bless $Game, 'Games::PangZero::Menu';
   $Game->{abortgame} = 0;
   {
     my @gameObjects = @GameObjects;
