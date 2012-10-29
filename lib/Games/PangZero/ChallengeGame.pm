@@ -56,7 +56,7 @@ sub AdvanceGameObjects {
   my ($self) = @_;
 
   if ($self->{nextlevel}) {
-    Games::PangZero::PlaySound('level');
+    Games::PangZero::Music::PlaySound('level');
     $self->SetGameLevel($self->{level} + 1);
     delete $self->{nextlevel};
   }

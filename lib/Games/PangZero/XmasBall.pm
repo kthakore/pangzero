@@ -30,13 +30,13 @@ sub GiveBonus {
 sub OnCollectedLife {
   my ($bonus, $guy) = @_;
   $guy->{player}->{lives}++;
-  Games::PangZero::PlaySound('bonuslife');
+  Games::PangZero::Music::PlaySound('bonuslife');
 }
 
 sub OnCollectedScore {
   my ($bonus, $guy) = @_;
   $guy->GiveScore(50000);
-  Games::PangZero::PlaySound('score');
+  Games::PangZero::Music::PlaySound('score');
 }
 
 sub OnCollectedInvulnerability {
