@@ -20,7 +20,7 @@ sub DrawScoreBoard {
     SDLx::SFont::print_text(   $Games::PangZero::Background, $x, $y, "Press F to fast forward" );
     SDLx::SFont::print_text(   $Games::PangZero::App, $x, $y, "Press F to fast forward" );
   } return;
-  SDL::Video::fill_rect($Games::PangZero::App, SDL::Rect->new(0, $y, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight - $y), SDL::Color->new(0, 0, 0) );
+  SDL::Video::fill_rect($Games::PangZero::App, SDL::Rect->new(0, $y, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight - $y), SDL::Video::map_RGB($Games::PangZero::App->format(), 0, 0, 0));
   SDLx::SFont::print_text( $Games::PangZero::App, $x, $y, $self->{recordpointer} );
 
 }

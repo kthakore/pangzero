@@ -261,7 +261,7 @@ sub LayoutScoreBoard {
 sub DrawLevelIndicator {
   my ($self, $x, $y)          = @_;
   $self->{levelIndicatorRect} = SDL::Rect->new($x, $y, 100, 32) unless $self->{levelIndicatorRect};
-  SDL::Video::fill_rect($Games::PangZero::App, $self->{levelIndicatorRect}, SDL::Color->new(0, 0, 0) );
+  SDL::Video::fill_rect($Games::PangZero::App, $self->{levelIndicatorRect}, SDL::Video::map_RGB($Games::PangZero::App->format(), 0, 0, 0));
   SDLx::SFont::print_text( $Games::PangZero::App, $x, $y + 3, 'Level ' . ($self->{level}+1) );
 
 }
@@ -282,7 +282,7 @@ sub PrintNumber {
 sub DrawScore {
   my ($self, $player, $x, $y, $livesY) = @_;
 
-  #SDL::Video::fill_rect( $Games::PangZero::App, $player->{scoreRect}, SDL::Color->new(0, 0, 0));
+  #SDL::Video::fill_rect($Games::PangZero::App, $player->{scoreRect}, SDL::Video::map_RGB($Games::PangZero::App->format(), 0, 0, 0));
   $self->PrintNumber( $player, $x, $y, $player->{score});
 
   $livesY     = $self->{rowHeight} > 32 ? $y + 24 : $y + 16;

@@ -221,7 +221,7 @@ sub RenderBorder {
 sub LoadBackground {
   my $filename = shift;
 
-  SDL::Video::fill_rect($Games::PangZero::Background, SDL::Rect->new(0, 0, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight), SDL::Color->new(0, 0, 0) );
+  SDL::Video::fill_rect($Games::PangZero::Background, SDL::Rect->new(0, 0, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight), SDL::Video::map_RGB($Games::PangZero::Background->format(), 0, 0, 0));
   my $backgroundImage = SDL::Image::load("$Games::PangZero::DataDir/$filename");
   my $dstrect         = SDL::Rect->new($Games::PangZero::ScreenMargin, $Games::PangZero::ScreenMargin, 0, 0);
   my $srcrect         = SDL::Rect->new(0, 0, $Games::PangZero::ScreenWidth, $Games::PangZero::ScreenHeight);

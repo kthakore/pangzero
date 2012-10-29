@@ -33,7 +33,7 @@ sub ShowTooltip {
   $Games::PangZero::ScoreFont->use();
   ($y, $yinc) = ($Games::PangZero::ScreenHeight + 35, 20);
   $rect       = SDL::Rect->new(0, $y, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight - $y );
-  SDL::Video::fill_rect( $Games::PangZero::Background, $rect, SDL::Color->new(0,0,0) );
+  SDL::Video::fill_rect($Games::PangZero::Background, $rect, SDL::Video::map_RGB($Games::PangZero::Background->format(), 0, 0, 0));
   foreach (@lines) {
     SDLx::SFont::print_text(   $Games::PangZero::Background, 10, $y, $_ ) if $y + $yinc < $Games::PangZero::PhysicalScreenHeight;
 
@@ -700,7 +700,7 @@ sub Run {
 
   $self->{title}              = Games::PangZero::MenuItem->new( 300,  60, "PANG ZERO" );
   $self->{title}->{filled}    = 1;
-  $self->{title}->{fillcolor} = SDL::Color->new(0, 128, 255);
+  $self->{title}->{fillcolor} = SDL::Video::map_RGB($Games::PangZero::Background->format(), 0, 128, 255);
   $self->{title}->Center();
 
   push @Games::PangZero::GameObjects, (

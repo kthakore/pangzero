@@ -17,7 +17,7 @@ sub new {
     'h'         => 42,
     'selected'  => 0,
     'filled'    => 0,
-    'fillcolor' => SDL::Color->new(0, 0, 128),
+    'fillcolor' => SDL::Video::map_RGB($Games::PangZero::Background->format(), 0, 0, 128),
     'parameter' => 0,
     'tooltip'   => [ @_[4 .. $#_] ],
   );
