@@ -39,7 +39,7 @@ sub Delete {
 
   --$self->{guy}->{harpoons} if $self->{index} == 1;
   delete $Harpoon::Harpoons{$self->{id}};
-  $self->GameObject::Delete();
+  $self->Games::PangZero::GameObject::Delete();
 }
 
 sub Advance {
