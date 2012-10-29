@@ -382,28 +382,7 @@ sub MainLoop {
 
 sub ShowErrorMessage {
   my ($message) = @_;
-
-  return if $ENV{PANGZERO_TEST};
-
-  $message = "Pang Zero $VERSION died:\n$message";
-  if (Games::PangZero::Config::IsMicrosoftWindows()) {
-    eval( '
-      use Win32;
-      Win32::MsgBox($message, MB_ICONEXCLAMATION, "Pang Zero error");
-    ' );
-    return;
-  } elsif ($ENV{'DISPLAY'}) {
-    $message =~ s/\"/\\"/g;
-    my @tryCommands = (
-      "kdialog --msgbox \"$message\"",
-      "gmessage -center \"$message\"",
-      "xmessage -center \"$message\"",
-    );
-    foreach (@tryCommands) {
-      `$_`;
-      return if $? == 0;
-    }
-  }
+  print "Pang Zero $VERSION died:\n$message\n";
 }
 
 sub ShowWebPage {
