@@ -418,15 +418,14 @@ sub ShowWebPage {
     exit;
   } elsif ($ENV{'DISPLAY'}) {
     my @tryCommands = (
-      "gnome-open $url",
-      "mozilla-firefox $url",
-      "firefox $url",
-      "mozilla $url",
-      "konqueror $url",
+      "gnome-open $url&",
+      "mozilla-firefox $url&",
+      "firefox $url&",
+      "mozilla $url&",
+      "konqueror $url&",
     );
     foreach (@tryCommands) {
-      `$_`;
-      return if $? == 0;
+      return if system($_) == 0;
     }
   } else {
     print "Visit $url for more info about Pang Zero $Games::PangZero::VERSION\n";
