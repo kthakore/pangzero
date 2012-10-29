@@ -106,7 +106,10 @@ sub LoadConfig {
     $pattern    =~ s/\[/\\[/g;
     if ($text =~ /$pattern = (.+?)$/m) {
       $val = $1;
-      if($val =~ /^SDLK_\w+$/) {
+      if ($varname eq Games::PangZero::ShowWebsite) {
+        eval( "\$$varname = '$val'" );
+      }
+      elsif($val =~ /^SDLK_\w+$/) {
         eval( "\$$varname = SDL::Events::$val()" );
       }
       elsif($val =~ /^[\d\.]+$/) {
