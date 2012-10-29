@@ -35,24 +35,12 @@ sub SetGameLevel {
   $self->SUPER::SetGameLevel($level);
   $level             = $#Games::PangZero::ChallengeLevels if $level > $#Games::PangZero::ChallengeLevels;
   $self->{challenge} = $Games::PangZero::ChallengeLevels[$level];
+  die unless $self->{challenge};
   $self->SpawnChallenge();
-
-  my ($levelObject, $surface);
-  $levelObject            = Games::PangZero::GameObject->new();
-  $surface                = CreateLevelNumberSurface($level + 1);
-  $levelObject->{surface} = $surface;
-  $levelObject->{w}       = $surface->w();
-  $levelObject->{h}       = $surface->h();
-  $levelObject->{x}       = ($Games::PangZero::ScreenWidth  - $levelObject->{w}) / 2;
-  $levelObject->{y}       = ($Games::PangZero::ScreenHeight - $levelObject->{h}) / 2;
-  $levelObject->{draw}    = sub { my $self = shift; SDL::Video::blit_surface($self->{surface},
-                                                                             SDL::Rect->new(0, 0, $self->{surface}->w, $self->{surface}->h),
-                                                                             $Games::PangZero::App, $self->{rect} ); };
-  $levelObject->{advance} = sub { my $self = shift; $self->Delete() if ++$self->{time} > 200; };
-  push @Games::PangZero::GameObjects, $levelObject;
+  $self->{leveladvance} = sub { my $self = shift; $self->Delete() if ++$self->{time} > 200; };
 }
 
-sub AdvanceGameObjects {
+sub AdvanceGame {
   my ($self) = @_;
 
   if ($self->{nextlevel}) {
@@ -64,7 +52,7 @@ sub AdvanceGameObjects {
     $self->SpawnChallenge();
     $self->{playerspawned} = 0;
   }
-  $self->SUPER::AdvanceGameObjects();
+  $self->SUPER::AdvanceGame();
 }
 
 sub SpawnChallenge {
@@ -96,7 +84,7 @@ sub SpawnChallenge {
       $x = $Games::PangZero::ScreenWidth * ($ballsSpawned * 2 + 1) / ($numBalls * 2) - $balldesc->{width} / 2;
       $x = $Games::PangZero::ScreenWidth - $balldesc->{width} if $x > $Games::PangZero::ScreenWidth - $balldesc->{width};
       $hasBonus = (($balldesc->{width} >= 32) and ($self->Rand(1) < $Games::PangZero::DifficultyLevel->{bonusprobability}));
-      $ball = &Ball::Spawn($balldesc, $x, ($ballsSpawned % 2) ? 0 : 1, $hasBonus);
+      $ball = &Games::PangZero::Ball::Spawn($balldesc, $x, ($ballsSpawned % 2) ? 0 : 1, $hasBonus);
       if ($ball->{w} <= 32) {
         $ball->{ismagic} = $ball->{hasmagic} = 0;
       }
