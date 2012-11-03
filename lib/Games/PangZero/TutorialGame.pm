@@ -15,11 +15,11 @@ sub SetChallenge {
 sub SetGameLevel {
   my ($self, $level) = @_;
 
-  $self->PlayableGameBase::SetGameLevel($level);
+  $self->Games::PangZero::PlayableGameBase::SetGameLevel($level);
   $self->SpawnChallenge();
 }
 
-sub AdvanceGameObjects {
+sub AdvanceGame {
   my ($self) = @_;
 
   if ($self->{nextlevel}) {
@@ -35,7 +35,7 @@ sub AdvanceGameObjects {
       $self->{abortgame} = 1;
     }
   }
-  $self->SUPER::AdvanceGameObjects();
+  $self->Games::PangZero::PlayableGameBase::AdvanceGame();
 }
 
 1;
