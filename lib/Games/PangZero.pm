@@ -351,17 +351,9 @@ sub MainLoop {
                                 : Games::PangZero::PanicGame->new();
   @Games::PangZero::Highscore::UnsavedHighScores = ();
   $Game->Run();
+  SDL::Video::blit_surface($Background, SDL::Rect->new(0, 0, $App->w, $App->h), $App, SDL::Rect->new(0, 0, $App->w, $App->h));
 
   bless $Game, 'Games::PangZero::Menu';
-  $Game->{abortgame} = 0;
-  {
-    my @gameObjects = @GameObjects;
-    foreach (@gameObjects) {
-      $_->Delete() if ref $_ eq 'Games::PangZero::Guy';
-    }
-  }
-
-  SDL::Video::blit_surface($Background, SDL::Rect->new(0, 0, $App->w, $App->h), $App, SDL::Rect->new(0, 0, $App->w, $App->h));
   $Games::PangZero::MenuFont->use();
   Games::PangZero::Highscore::MergeUnsavedHighScores($menuResult eq 'challenge' ? 'Cha' : 'Pan');
 

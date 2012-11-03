@@ -55,8 +55,8 @@ sub ShowTooltip {
 sub ResetGame {
   my $self                      = shift;
   @Games::PangZero::GameObjects = ();
-  %Guy::Guys                    = ();
-  %Harpoon::Harpoons            = ();
+  %Games::PangZero::Guy::Guys   = ();
+  %Games::PangZero::Harpoon::Harpoons = ();
   $Games::PangZero::GamePause   = 0;
   %Games::PangZero::GameEvents  = ();
   $self->SetBackground(0);
