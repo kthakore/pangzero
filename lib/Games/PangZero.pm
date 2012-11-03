@@ -319,9 +319,13 @@ sub Initialize {
 
   ($PhysicalScreenWidth, $PhysicalScreenHeight) = Games::PangZero::Graphics::FindVideoMode();
 
+  my $icon = SDL::Video::load_BMP("$DataDir/icon.bmp");
+  SDL::Video::set_color_key($icon, SDL_SRCCOLORKEY, SDL::Color->new(0, 255, 0));
+  SDL::Video::wm_set_icon($icon);
   $App = SDL::Video::set_video_mode($PhysicalScreenWidth,
                                     $PhysicalScreenHeight,
                                     32, $sdlFlags);
+  SDL::Video::wm_set_caption("Pang Zero $VERSION", "Pang Zero $VERSION");
   SDL::Mouse::show_cursor(0);
 
   $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 16);
