@@ -351,7 +351,6 @@ sub MainLoop {
                                 : Games::PangZero::PanicGame->new();
   @Games::PangZero::Highscore::UnsavedHighScores = ();
   $Game->Run();
-  SDL::Video::blit_surface($Background, SDL::Rect->new(0, 0, $App->w, $App->h), $App, SDL::Rect->new(0, 0, $App->w, $App->h));
 
   bless $Game, 'Games::PangZero::Menu';
   $Games::PangZero::MenuFont->use();

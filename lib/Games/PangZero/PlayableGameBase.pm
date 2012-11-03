@@ -372,7 +372,7 @@ sub Run {
   $self->{superKillDelay} = 0;
   $self->{superKillGuy}   = undef;
 
-  while (1) {
+  while (! $self->{abortgame}) {
 
     # Calculate advance (how many game updates to perform)
     my $advance = $self->CalculateAdvances();
@@ -381,8 +381,7 @@ sub Run {
 
     %Games::PangZero::Events = ();
     Games::PangZero::HandleEvents();
-    while ($advance--) {
-      return if $self->{abortgame};
+    while ($advance-- && ! $self->{abortgame}) {
       $self->AdvanceGame();
     }
 
@@ -408,6 +407,7 @@ sub Run {
     }
     $self->DrawGame();
   }
+  $self->SUPER::ResetGame();
 }
 
 1;

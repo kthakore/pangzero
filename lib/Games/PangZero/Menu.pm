@@ -134,7 +134,6 @@ sub RunTutorial {
   $Games::PangZero::MenuFont->use();
   $self->SetGameSpeed();
 
-  foreach (@Games::PangZero::GameObjects) { $_->Clear(); }
   @Games::PangZero::GameObjects = @oldGameObjects;
   %Guy::Guys             = %oldGuys;
   %Harpoon::Harpoons     = %oldHarpoons;
