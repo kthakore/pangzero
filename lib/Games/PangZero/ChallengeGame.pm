@@ -15,19 +15,6 @@ sub new {
   bless $self, $class;
 }
 
-sub CreateLevelNumberSurface {
-  my ($level) = @_;
-  my ($surface, $w);
-
-  $Games::PangZero::GlossyFont->use();
-  $w       = Games::PangZero::Graphics::TextWidth("Level $level");
-  $surface = SDL::Surface->new(SDL_SWSURFACE(), $w+6, 48, 32);
-  SDLx::SFont::print_text( $surface, 3, 3, "Level $level" );
-
-  $Games::PangZero::ScoreFont->use();
-  return $surface;
-}
-
 sub SetGameLevel {
   my ($self, $level) = @_;
 
@@ -37,7 +24,6 @@ sub SetGameLevel {
   $self->{challenge} = $Games::PangZero::ChallengeLevels[$level];
   die unless $self->{challenge};
   $self->SpawnChallenge();
-  $self->{leveladvance} = sub { my $self = shift; $self->Delete() if ++$self->{time} > 200; };
 }
 
 sub AdvanceGame {
