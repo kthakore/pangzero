@@ -398,11 +398,11 @@ sub ShowWebPage {
     exit;
   } elsif ($ENV{'DISPLAY'}) {
     my @tryCommands = (
-      "gnome-open $url&",
-      "mozilla-firefox $url&",
-      "firefox $url&",
-      "mozilla $url&",
-      "konqueror $url&",
+      "which gnome-open > /dev/null 2>&1 && (gnome-open $url&)",
+      "which mozilla-firefox > /dev/null 2>&1 && (mozilla-firefox $url&)",
+      "which firefox > /dev/null 2>&1 && (firefox $url&)",
+      "which mozilla > /dev/null 2>&1 && (mozilla $url&)",
+      "which konqueror > /dev/null 2>&1 && (konqueror $url&)",
     );
     foreach (@tryCommands) {
       return if system($_) == 0;
