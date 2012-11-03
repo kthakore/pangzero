@@ -255,7 +255,7 @@ sub FindVideoMode {
   # Conclusion: Any resolution where w in [800,900], h > 480 and r in [1.5, 1.8] is good
 
   my ($modes, $mode, @goodModes, $w, $h, $ratio);
-  $modes = SDL::ListModes( 0, SDL_HWSURFACE ); #add back fullscreen
+  $modes = SDL::Video::list_modes( 0, SDL_HWSURFACE ); #add back fullscreen
   foreach $mode (@{$modes}) {
     $w     = $mode->w;
     $h     = $mode->h;
