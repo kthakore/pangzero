@@ -6,6 +6,7 @@ package Games::PangZero::PlayableGameBase;
 
 use strict;
 use warnings;
+use SDL::Video;
 
 sub new {
   my ($class) = @_;
@@ -115,11 +116,11 @@ sub PlayerDeathSequence {
   $self->DrawGame();
   Games::PangZero::Music::PlaySound('death');
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::WhiteBorderSurface, $Games::PangZero::App);
-  $Games::PangZero::App->sync();
+  SDL::Video::flip($Games::PangZero::App);
   $self->Delay(10);
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::RedBorderSurface, $Games::PangZero::App);
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::RedBorderSurface, $Games::PangZero::Background);
-  $Games::PangZero::App->sync();
+  SDL::Video::flip($Games::PangZero::App);
   $self->Delay(90);
 
   @killedGuys = grep { $_->{justkilled}; } @Games::PangZero::GameObjects;
@@ -261,7 +262,7 @@ sub LayoutScoreBoard {
 sub DrawLevelIndicator {
   my ($self, $x, $y)          = @_;
   $self->{levelIndicatorRect} = SDL::Rect->new($x, $y, 100, 32) unless $self->{levelIndicatorRect};
-  SDL::Video::fill_rect($Games::PangZero::App, $self->{levelIndicatorRect}, SDL::Color->new(0, 0, 0) );
+  SDL::Video::fill_rect($Games::PangZero::App, $self->{levelIndicatorRect}, SDL::Video::map_RGB($Games::PangZero::App->format(), 0, 0, 0));
   SDLx::SFont::print_text( $Games::PangZero::App, $x, $y + 3, 'Level ' . ($self->{level}+1) );
 
 }
@@ -282,7 +283,7 @@ sub PrintNumber {
 sub DrawScore {
   my ($self, $player, $x, $y, $livesY) = @_;
 
-  #SDL::Video::fill_rect( $Games::PangZero::App, $player->{scoreRect}, SDL::Color->new(0, 0, 0));
+  SDL::Video::fill_rect($Games::PangZero::App, $player->{scoreRect}, SDL::Video::map_RGB($Games::PangZero::App->format(), 0, 0, 0));
   $self->PrintNumber( $player, $x, $y, $player->{score});
 
   $livesY     = $self->{rowHeight} > 32 ? $y + 24 : $y + 16;
@@ -372,7 +373,7 @@ sub Run {
   $self->{superKillDelay} = 0;
   $self->{superKillGuy}   = undef;
 
-  while (1) {
+  while (! $self->{abortgame}) {
 
     # Calculate advance (how many game updates to perform)
     my $advance = $self->CalculateAdvances();
@@ -381,8 +382,7 @@ sub Run {
 
     %Games::PangZero::Events = ();
     Games::PangZero::HandleEvents();
-    while ($advance--) {
-      return if $self->{abortgame};
+    while ($advance-- && ! $self->{abortgame}) {
       $self->AdvanceGame();
     }
 
@@ -395,7 +395,7 @@ sub Run {
                                $Games::PangZero::App, SDL::Rect->new(
                                  ($Games::PangZero::PhysicalScreenWidth - $gameoverSurface->w) / 2, $Games::PangZero::PhysicalScreenHeight / 2 - 100,
                                  $gameoverSurface->w, $gameoverSurface->h));
-      $Games::PangZero::App->sync();
+      SDL::Video::flip($Games::PangZero::App);
       SDL::delay(1000);
       for (my $i=0; $i < 20; ++$i) {
         SDL::delay(100);
@@ -408,6 +408,7 @@ sub Run {
     }
     $self->DrawGame();
   }
+  $self->SUPER::ResetGame();
 }
 
 1;

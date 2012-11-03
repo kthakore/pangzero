@@ -66,7 +66,7 @@ The parts of the file are organized like this:
 '
 =cut
 
-use SDL;
+use SDL ':init';
 use SDL::Surface;
 use SDL::Palette;
 use SDL::PixelFormat;
@@ -80,7 +80,6 @@ use SDL::GFX::Rotozoom;
 use SDL::Joystick;
 use SDL::Mouse;
 use SDL::Image;
-use SDLx::App;
 use SDLx::SFont;
 
 use Carp;
@@ -212,6 +211,7 @@ sub HandleEvents {
         $MenuEvents{LEFT}    = 1 if $keypressed == SDLK_LEFT();
         $MenuEvents{RIGHT}   = 1 if $keypressed == SDLK_RIGHT();
         $MenuEvents{BUTTON}  = 1 if $keypressed == SDLK_RETURN();
+        $MenuEvents{BACKSP}  = 1 if $keypressed == SDLK_BACKSPACE;
         $LastUnicodeKey      = $event->key_unicode() if $UnicodeMode;
       }
     }
@@ -300,7 +300,7 @@ sub DoRecordDemo {
 
 sub Initialize {
 
-  eval { SDL::init(SDL_INIT_EVERYTHING()); };
+  eval { SDL::init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) };
   die "Unable to initialize SDL: $@" if $@;
 
   Games::PangZero::Config::FindDataDir();
@@ -310,21 +310,22 @@ sub Initialize {
   if (Games::PangZero::Config::IsMicrosoftWindows()) {
     $sdlFlags = SDL_ANYFORMAT;
   } else {
-    $sdlFlags = SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF | SDL_ANYFORMAT | SDL_FULLSCREEN;
+    if ($Games::PangZero::FullScreen) {
+      $sdlFlags = SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF | SDL_ANYFORMAT | SDL_FULLSCREEN;
+    } else {
+      $sdlFlags = SDL_HWSURFACE | SDL_HWACCEL | SDL_DOUBLEBUF | SDL_ANYFORMAT;
+    }
   }
 
   ($PhysicalScreenWidth, $PhysicalScreenHeight) = Games::PangZero::Graphics::FindVideoMode();
 
-  $App = SDLx::App->new(
-    flags      => $sdlFlags,
-    title      => "Pang Zero $VERSION",
-    icon       => "$DataDir/icon.png",
-    width      => $PhysicalScreenWidth,
-    height     => $PhysicalScreenHeight,
-    fullscreen => $FullScreen,
-    delay      => 20
-  );
-
+  my $icon = SDL::Video::load_BMP("$DataDir/icon.bmp");
+  SDL::Video::set_color_key($icon, SDL_SRCCOLORKEY, SDL::Color->new(0, 255, 0));
+  SDL::Video::wm_set_icon($icon);
+  $App = SDL::Video::set_video_mode($PhysicalScreenWidth,
+                                    $PhysicalScreenHeight,
+                                    32, $sdlFlags);
+  SDL::Video::wm_set_caption("Pang Zero $VERSION", "Pang Zero $VERSION");
   SDL::Mouse::show_cursor(0);
 
   $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 16);
@@ -351,16 +352,7 @@ sub MainLoop {
   @Games::PangZero::Highscore::UnsavedHighScores = ();
   $Game->Run();
 
-  bless $Game, 'Menu';
-  $Game->{abortgame} = 0;
-  {
-    my @gameObjects = @GameObjects;
-    foreach (@gameObjects) {
-      $_->Delete() if ref $_ eq 'Games::PangZero::Guy';
-    }
-  }
-
-  SDL::Video::blit_surface($Background, SDL::Rect->new(0, 0, $App->w, $App->h), $App, SDL::Rect->new(0, 0, $App->w, $App->h));
+  bless $Game, 'Games::PangZero::Menu';
   $Games::PangZero::MenuFont->use();
   Games::PangZero::Highscore::MergeUnsavedHighScores($menuResult eq 'challenge' ? 'Cha' : 'Pan');
 
@@ -382,28 +374,7 @@ sub MainLoop {
 
 sub ShowErrorMessage {
   my ($message) = @_;
-
-  return if $ENV{PANGZERO_TEST};
-
-  $message = "Pang Zero $VERSION died:\n$message";
-  if (Games::PangZero::Config::IsMicrosoftWindows()) {
-    eval( '
-      use Win32;
-      Win32::MsgBox($message, MB_ICONEXCLAMATION, "Pang Zero error");
-    ' );
-    return;
-  } elsif ($ENV{'DISPLAY'}) {
-    $message =~ s/\"/\\"/g;
-    my @tryCommands = (
-      "kdialog --msgbox \"$message\"",
-      "gmessage -center \"$message\"",
-      "xmessage -center \"$message\"",
-    );
-    foreach (@tryCommands) {
-      `$_`;
-      return if $? == 0;
-    }
-  }
+  print "Pang Zero $VERSION died:\n$message\n";
 }
 
 sub ShowWebPage {
@@ -418,15 +389,14 @@ sub ShowWebPage {
     exit;
   } elsif ($ENV{'DISPLAY'}) {
     my @tryCommands = (
-      "gnome-open $url",
-      "mozilla-firefox $url",
-      "firefox $url",
-      "mozilla $url",
-      "konqueror $url",
+      "which gnome-open > /dev/null 2>&1 && (gnome-open $url&)",
+      "which mozilla-firefox > /dev/null 2>&1 && (mozilla-firefox $url&)",
+      "which firefox > /dev/null 2>&1 && (firefox $url&)",
+      "which mozilla > /dev/null 2>&1 && (mozilla $url&)",
+      "which konqueror > /dev/null 2>&1 && (konqueror $url&)",
     );
     foreach (@tryCommands) {
-      `$_`;
-      return if $? == 0;
+      return if system($_) == 0;
     }
   } else {
     print "Visit $url for more info about Pang Zero $Games::PangZero::VERSION\n";

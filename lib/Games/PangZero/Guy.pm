@@ -226,7 +226,7 @@ sub GiveScore {
   if ($player->{score} >= $player->{scoreforbonuslife}) {
     ++$player->{lives};
     $player->{scoreforbonuslife} += 200000;
-    Games::PangZero::PlaySound('bonuslife');
+    Games::PangZero::Music::PlaySound('bonuslife');
   }
 }
 

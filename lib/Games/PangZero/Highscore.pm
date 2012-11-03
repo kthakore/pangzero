@@ -36,7 +36,7 @@ sub MergeUnsavedHighScores {
   @Games::PangZero::UnsavedHighScores = ();
   my $newHighScore = &InputPlayerNames($table);
   if ($newHighScore) {
-    $Game->RunHighScore( $Games::PangZero::DifficultyLevelIndex, $table, 0 );
+    $Games::PangZero::Game->RunHighScore( $Games::PangZero::DifficultyLevelIndex, $table, 0 );
   }
 }
 
@@ -97,16 +97,15 @@ sub InputPlayerName {
   
   while (1) {
     $Games::PangZero::LastUnicodeKey = 0;
-    $Game->MenuAdvance();
-    last if $Game->{abortgame};
-    if (%Events) {
-      my ($key) = %Events;
-      if ($key == SDLK_BACKSPACE) {
+    $Games::PangZero::Game->MenuAdvance();
+    last if $Games::PangZero::Game->{abortgame};
+    if (%Games::PangZero::Events) {
+      if ($Games::PangZero::MenuEvents{BACKSP}) {
         substr($name, -2, 1, '');        # Remove next to last char
         $nameMenuItem->SetText($name);
-      } elsif ($key == SDLK_RETURN) {
+      } elsif ($Games::PangZero::MenuEvents{BUTTON}) {
         last;
-      } elsif ($LastUnicodeKey < 127 and $Games::PangZero::LastUnicodeKey >= 32 and length($name) < 9) {
+      } elsif ($Games::PangZero::LastUnicodeKey < 127 and $Games::PangZero::LastUnicodeKey >= 32 and length($name) < 9) {
         substr($name, -1, 0, chr($Games::PangZero::LastUnicodeKey));   # Insert before last char
         $nameMenuItem->SetText($name);
       }

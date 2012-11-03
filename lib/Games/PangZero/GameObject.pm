@@ -56,7 +56,7 @@ sub Draw {
   if ($self->{draw}) {
     $self->{draw}->($self);
   } else {
-    SDL::Video::fill_rect( $Games::PangZero::App, $self->{rect}, SDL::Color->new(0x80, 0, 0) );
+    SDL::Video::fill_rect($Games::PangZero::App, $self->{rect}, SDL::Video::map_RGB($Games::PangZero::App->format(), 0x80, 0, 0));
   }
 }
 

@@ -33,7 +33,7 @@ sub ShowTooltip {
   $Games::PangZero::ScoreFont->use();
   ($y, $yinc) = ($Games::PangZero::ScreenHeight + 35, 20);
   $rect       = SDL::Rect->new(0, $y, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight - $y );
-  SDL::Video::fill_rect( $Games::PangZero::Background, $rect, SDL::Color->new(0,0,0) );
+  SDL::Video::fill_rect($Games::PangZero::Background, $rect, SDL::Video::map_RGB($Games::PangZero::Background->format(), 0, 0, 0));
   foreach (@lines) {
     SDLx::SFont::print_text(   $Games::PangZero::Background, 10, $y, $_ ) if $y + $yinc < $Games::PangZero::PhysicalScreenHeight;
 
@@ -134,7 +134,6 @@ sub RunTutorial {
   $Games::PangZero::MenuFont->use();
   $self->SetGameSpeed();
 
-  foreach (@Games::PangZero::GameObjects) { $_->Clear(); }
   @Games::PangZero::GameObjects = @oldGameObjects;
   %Guy::Guys             = %oldGuys;
   %Harpoon::Harpoons     = %oldHarpoons;
@@ -164,8 +163,8 @@ sub RunTutorialMenu {
   );
 
   push @{$self->{menuItems}},
-    Games::PangZero::MenuItem->new( 50, $baseY, "Back to main menu"),
-    Games::PangZero::MenuItem->new( 50, $baseY += 40, "Run Demo" );
+    Games::PangZero::MenuItem->new( 50, $baseY, "Back to main menu");
+#   Games::PangZero::MenuItem->new( 50, $baseY += 40, "Run Demo" );
 
   $baseY = 110;
   $baseX = 50;
@@ -188,18 +187,18 @@ sub RunTutorialMenu {
     last if $self->{abortgame};
     $self->HandleUpDownKeys();
 
-    if ($Games::PangZero::MenuEvents{LEFT} and $self->{currentItemIndex} > 1) {
+    if ($Games::PangZero::MenuEvents{LEFT} and $self->{currentItemIndex} >= 6 and $self->{currentItemIndex} <= 10) {
       $self->SetCurrentItemIndex($self->{currentItemIndex} - 5);
     }
-    if ($Games::PangZero::MenuEvents{RIGHT} and $self->{currentItemIndex} > 1) {
+    if ($Games::PangZero::MenuEvents{RIGHT} and $self->{currentItemIndex} >= 1 and $self->{currentItemIndex} <= 5) {
       $self->SetCurrentItemIndex($self->{currentItemIndex} + 5);
     }
     if ($Games::PangZero::MenuEvents{BUTTON}) {
       if (0 == $self->{currentItemIndex}) {
         last;
-      } elsif (1 == $self->{currentItemIndex}) {
-        $self->{result} = 'demo';
-        last;
+#      } elsif (1 == $self->{currentItemIndex}) {
+#        $self->{result} = 'demo';
+#        last;
       } else {
         $self->RunTutorial($self->{currentItem}->{challenge});
       }
@@ -438,9 +437,9 @@ sub RunOptionsMenu {
       } elsif ($self->{currentItemIndex} == 3) {
         $Games::PangZero::SoundEnabled = 1 - $Games::PangZero::SoundEnabled; $self->UpdateOptionsMenu();
       } elsif ($self->{currentItemIndex} == 4) {
-        Games::PangZero::SetMusicEnabled(1 - $Games::PangZero::MusicEnabled); $self->UpdateOptionsMenu();
+        Games::PangZero::Music::SetMusicEnabled(1 - $Games::PangZero::MusicEnabled); $self->UpdateOptionsMenu();
       } elsif ($self->{currentItemIndex} == 6) {
-        $Games::PangZero::ShowWebsite = ($Games::PangZero::ShowWebsite eq $Games::PangZero::Version ? 0 : $Games::PangZero::VERSION); $self->UpdateOptionsMenu();
+        $Games::PangZero::ShowWebsite = $Games::PangZero::ShowWebsite eq $Games::PangZero::VERSION ? 0 : $Games::PangZero::VERSION; $self->UpdateOptionsMenu();
       }
     }
   }
@@ -700,7 +699,7 @@ sub Run {
 
   $self->{title}              = Games::PangZero::MenuItem->new( 300,  60, "PANG ZERO" );
   $self->{title}->{filled}    = 1;
-  $self->{title}->{fillcolor} = SDL::Color->new(0, 128, 255);
+  $self->{title}->{fillcolor} = SDL::Video::map_RGB($Games::PangZero::Background->format(), 0, 128, 255);
   $self->{title}->Center();
 
   push @Games::PangZero::GameObjects, (

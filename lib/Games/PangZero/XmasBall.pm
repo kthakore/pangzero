@@ -13,7 +13,7 @@ sub SpawnChildren {
 sub Pop {
   my $self          = shift;
   $self->SUPER::Pop(@_);
-  my $bonusdrop     = BonusDrop->new($self);
+  my $bonusdrop     = Games::PangZero::BonusDrop->new($self);
   my @collectedSubs = ( \&OnCollectedLife, \&OnCollectedScore, \&OnCollectedScore, \&OnCollectedInvulnerability, \&OnCollectedInvulnerability );
   if ($Games::PangZero::Game->Rand(2 * scalar @collectedSubs) < scalar @collectedSubs) {
     $bonusdrop->{desc} = { 'srcRect' => SDL::Rect->new(0, 0, 32, 32), };
@@ -30,13 +30,13 @@ sub GiveBonus {
 sub OnCollectedLife {
   my ($bonus, $guy) = @_;
   $guy->{player}->{lives}++;
-  Games::PangZero::PlaySound('bonuslife');
+  Games::PangZero::Music::PlaySound('bonuslife');
 }
 
 sub OnCollectedScore {
   my ($bonus, $guy) = @_;
   $guy->GiveScore(50000);
-  Games::PangZero::PlaySound('score');
+  Games::PangZero::Music::PlaySound('score');
 }
 
 sub OnCollectedInvulnerability {

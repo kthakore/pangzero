@@ -1,6 +1,6 @@
 package Games::PangZero::Music;
 
-use SDL::Mixer;
+use SDL::Mixer ':init';
 use SDL::Mixer::Samples;
 use SDL::Mixer::Channels;
 use SDL::Mixer::Music;
@@ -15,6 +15,8 @@ sub LoadMusic {
 }
 
 sub LoadSounds {
+  my $init_flags = SDL::Mixer::init( MIX_INIT_MP3 | MIX_INIT_OGG);
+
   $Mixer = SDL::Mixer::open_audio( 22050, AUDIO_S16, 2, 1024 ) + 1;
   unless($Mixer) {
     warn SDL::get_error();
@@ -22,30 +24,35 @@ sub LoadSounds {
   }
 
   my ($soundName, $fileName);
-  while (($soundName, $fileName) = each %Sounds) {
-    $Sounds{$soundName} = SDL::Mixer::Music::load_WAV("$Games::PangZero::DataDir/$fileName");
+  while (($soundName, $fileName) = each %Games::PangZero::Sounds) {
+    $Sounds{$soundName} = SDL::Mixer::Samples::load_WAV("$Games::PangZero::DataDir/$fileName");
   }
 
-  $Games::PangZero::music = LoadMusic("$Games::PangZero::DataDir/UPiPang.mp3");
-  $Games::PangZero::music = LoadMusic("$Games::PangZero::DataDir/UPiPang.mid") unless $Games::PangZero::music;
-  SetMusicEnabled($MusicEnabled);
+  if (-f "$Games::PangZero::DataDir/UPiPang.mp3" && ($init_flags & MIX_INIT_MP3)) {
+      $Games::PangZero::music = LoadMusic("$Games::PangZero::DataDir/UPiPang.mp3");
+  } elsif (-f "$Games::PangZero::DataDir/UPiPang.ogg" && ($init_flags & MIX_INIT_OGG)) {
+      $Games::PangZero::music = LoadMusic("$Games::PangZero::DataDir/UPiPang.ogg");
+  } else {
+      $Games::PangZero::music = LoadMusic("$Games::PangZero::DataDir/UPiPang.mid");
+  }
+  SetMusicEnabled($Games::PangZero::MusicEnabled);
 }
 
 sub PlaySound {
-  return unless $SoundEnabled;
+  return unless $Games::PangZero::SoundEnabled;
   my $sound = shift;
   $Mixer and $Sounds{$sound} and SDL::Mixer::Channels::play_channel( -1, $Sounds{$sound}, 0 );
 }
 
 sub SetMusicEnabled {
-  return $MusicEnabled = 0 unless $Games::PangZero::music;
+  return $Games::PangZero::MusicEnabled = 0 unless $Games::PangZero::music;
   my $musicEnabled = shift;
 
-  $MusicEnabled = $musicEnabled ? 1 : 0;
-  if ( (not $MusicEnabled) and SDL::Mixer::Music::playing_music() ) {
+  $Games::PangZero::MusicEnabled = $musicEnabled ? 1 : 0;
+  if ( (not $musicEnabled) and SDL::Mixer::Music::playing_music() ) {
     SDL::Mixer::Music::halt_music();
   }
-  if ($MusicEnabled and not SDL::Mixer::Music::playing_music()) {
+  if ($musicEnabled and not SDL::Mixer::Music::playing_music()) {
     SDL::Mixer::Music::play_music($Games::PangZero::music, -1);
   }
 }

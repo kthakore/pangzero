@@ -7,7 +7,8 @@ use warnings;
 use vars qw(@BonusDesc);
 
 @BonusDesc = (
-  { 'weaponClass' => 'MachineGun', 'bonusDelay' => 1500, 'srcRect' => SDL::Rect->new( 0, 64, 32, 32), },
+# MachineGun is disabled for now as it is broken (seems like invisible bullets keep flying around)
+# { 'weaponClass' => 'MachineGun', 'bonusDelay' => 1500, 'srcRect' => SDL::Rect->new( 0, 64, 32, 32), },
   { 'weaponClass' => 'HalfCutter', 'bonusDelay' => 1000, 'srcRect' => SDL::Rect->new(32, 64, 32, 32), },
   { 'weaponClass' => 'PowerWire',  'bonusDelay' => 3000, 'srcRect' => SDL::Rect->new(32, 96, 32, 32), },
   { 'onCollectedSub' => \&OnCollectedSlowEffect,         'srcRect' => SDL::Rect->new(32,  0, 32, 32), },

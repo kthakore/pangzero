@@ -4,8 +4,9 @@
 package Games::PangZero::Globals;
 
 use Games::PangZero::Config;
+use SDL::Rect;
 
-%Sounds = (
+%Games::PangZero::Sounds = (
   'pop' => 'pop.voc',
   'shoot' => 'shoot.voc',
   'death' => 'meow.voc',

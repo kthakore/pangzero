@@ -5,6 +5,7 @@ package Games::PangZero::PlaybackGame;
 @ISA = qw(Games::PangZero::PanicGame);
 use strict;
 use warnings;
+use SDL::Video;
 
 sub new {
   my ($class, $numGuys, $difficultyLevel, $record, $rand, $messages) = @_;
@@ -98,7 +99,7 @@ sub DisplayMessage {
 
     SDLx::SFont::print_text( $Games::PangZero::App,$x, $y, substr($message, 0, $len) );
 
-    $Games::PangZero::App->sync();
+    SDL::Video::flip($Games::PangZero::App);
     last if $len > length($message) + 15;
   }
   SDL::Video::blit_surface($Games::PangZero::Background, SDL::Rect->new(0, $y, $Games::PangZero::PhysicalScreenWidth, $y, 40), $Games::PangZero::App, SDL::Rect->new(0, $y, $Games::PangZero::App->w, $Games::PangZero::App->h));

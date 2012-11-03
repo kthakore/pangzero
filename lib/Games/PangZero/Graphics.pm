@@ -23,7 +23,6 @@ use SDL::Mixer::MixMusic;
 use SDL::Joystick;
 use SDL::Mouse;
 use SDL::Image;
-use SDLx::App;
 use SDLx::SFont;
 
 sub LoadSurfaces {
@@ -221,7 +220,7 @@ sub RenderBorder {
 sub LoadBackground {
   my $filename = shift;
 
-  SDL::Video::fill_rect($Games::PangZero::Background, SDL::Rect->new(0, 0, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight), SDL::Color->new(0, 0, 0) );
+  SDL::Video::fill_rect($Games::PangZero::Background, SDL::Rect->new(0, 0, $Games::PangZero::PhysicalScreenWidth, $Games::PangZero::PhysicalScreenHeight), SDL::Video::map_RGB($Games::PangZero::Background->format(), 0, 0, 0));
   my $backgroundImage = SDL::Image::load("$Games::PangZero::DataDir/$filename");
   my $dstrect         = SDL::Rect->new($Games::PangZero::ScreenMargin, $Games::PangZero::ScreenMargin, 0, 0);
   my $srcrect         = SDL::Rect->new(0, 0, $Games::PangZero::ScreenWidth, $Games::PangZero::ScreenHeight);
@@ -255,7 +254,7 @@ sub FindVideoMode {
   # Conclusion: Any resolution where w in [800,900], h > 480 and r in [1.5, 1.8] is good
 
   my ($modes, $mode, @goodModes, $w, $h, $ratio);
-  $modes = SDL::ListModes( 0, SDL_HWSURFACE ); #add back fullscreen
+  $modes = SDL::Video::list_modes( 0, SDL_HWSURFACE ); #add back fullscreen
   foreach $mode (@{$modes}) {
     $w     = $mode->w;
     $h     = $mode->h;
