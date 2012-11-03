@@ -5,6 +5,7 @@ package Games::PangZero::RecordGame;
 @ISA = qw(Games::PangZero::PanicGame);
 use strict;
 use warnings;
+use SDL;
 
 sub Rand {
   my $self = shift;
@@ -38,7 +39,7 @@ sub Rewind {
   
   while( not %Games::PangZero::Events ) {
     Games::PangZero::HandleEvents();
-    $Games::PangZero::App->delay(100);
+    SDL::delay(100);
   }
   GameTimer::ResetTimer();
 }

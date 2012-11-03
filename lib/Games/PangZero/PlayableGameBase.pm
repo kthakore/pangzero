@@ -6,6 +6,7 @@ package Games::PangZero::PlayableGameBase;
 
 use strict;
 use warnings;
+use SDL::Video;
 
 sub new {
   my ($class) = @_;
@@ -115,11 +116,11 @@ sub PlayerDeathSequence {
   $self->DrawGame();
   Games::PangZero::Music::PlaySound('death');
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::WhiteBorderSurface, $Games::PangZero::App);
-  $Games::PangZero::App->sync();
+  SDL::Video::flip($Games::PangZero::App);
   $self->Delay(10);
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::RedBorderSurface, $Games::PangZero::App);
   Games::PangZero::Graphics::RenderBorder($Games::PangZero::RedBorderSurface, $Games::PangZero::Background);
-  $Games::PangZero::App->sync();
+  SDL::Video::flip($Games::PangZero::App);
   $self->Delay(90);
 
   @killedGuys = grep { $_->{justkilled}; } @Games::PangZero::GameObjects;
@@ -394,7 +395,7 @@ sub Run {
                                $Games::PangZero::App, SDL::Rect->new(
                                  ($Games::PangZero::PhysicalScreenWidth - $gameoverSurface->w) / 2, $Games::PangZero::PhysicalScreenHeight / 2 - 100,
                                  $gameoverSurface->w, $gameoverSurface->h));
-      $Games::PangZero::App->sync();
+      SDL::Video::flip($Games::PangZero::App);
       SDL::delay(1000);
       for (my $i=0; $i < 20; ++$i) {
         SDL::delay(100);

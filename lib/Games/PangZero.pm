@@ -66,7 +66,7 @@ The parts of the file are organized like this:
 '
 =cut
 
-use SDL;
+use SDL ':init';
 use SDL::Surface;
 use SDL::Palette;
 use SDL::PixelFormat;
@@ -80,7 +80,6 @@ use SDL::GFX::Rotozoom;
 use SDL::Joystick;
 use SDL::Mouse;
 use SDL::Image;
-use SDLx::App;
 use SDLx::SFont;
 
 use Carp;
@@ -301,7 +300,7 @@ sub DoRecordDemo {
 
 sub Initialize {
 
-  eval { SDL::init(SDL_INIT_EVERYTHING()); };
+  eval { SDL::init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) };
   die "Unable to initialize SDL: $@" if $@;
 
   Games::PangZero::Config::FindDataDir();
@@ -320,15 +319,9 @@ sub Initialize {
 
   ($PhysicalScreenWidth, $PhysicalScreenHeight) = Games::PangZero::Graphics::FindVideoMode();
 
-  $App = SDLx::App->new(
-    flags      => $sdlFlags,
-    title      => "Pang Zero $VERSION",
-    icon       => "$DataDir/icon.png",
-    width      => $PhysicalScreenWidth,
-    height     => $PhysicalScreenHeight,
-    delay      => 20
-  );
-
+  $App = SDL::Video::set_video_mode($PhysicalScreenWidth,
+                                    $PhysicalScreenHeight,
+                                    32, $sdlFlags);
   SDL::Mouse::show_cursor(0);
 
   $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 16);

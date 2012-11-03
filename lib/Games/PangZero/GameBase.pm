@@ -2,6 +2,9 @@
 package Games::PangZero::GameBase;
 ##########################################################################
 
+use SDL;
+use SDL::Video;
+
 sub new {
   my ($class) = @_;
   my $self    = {
@@ -65,7 +68,7 @@ sub ResetGame {
 sub CalculateAdvances {
   my $advance = Games::PangZero::GameTimer::GetAdvances();
   while ($advance <= 0) {
-    $Games::PangZero::App->delay(3); # Wait 3ms = 0.3 game ticks
+    SDL::delay(3); # Wait 3ms = 0.3 game ticks
     $advance = Games::PangZero::GameTimer::GetAdvances();
   }
   if ($advance > 5) {
@@ -98,7 +101,7 @@ sub DrawGame {
   foreach $gameObject (@Games::PangZero::GameObjects) {
     $gameObject->Draw();
   }
-  $Games::PangZero::App->sync();
+  SDL::Video::flip($Games::PangZero::App);
 }
 
 sub DrawScoreBoard {

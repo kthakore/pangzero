@@ -23,7 +23,6 @@ use SDL::Mixer::MixMusic;
 use SDL::Joystick;
 use SDL::Mouse;
 use SDL::Image;
-use SDLx::App;
 use SDLx::SFont;
 
 sub LoadSurfaces {
