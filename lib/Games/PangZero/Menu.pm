@@ -163,8 +163,8 @@ sub RunTutorialMenu {
   );
 
   push @{$self->{menuItems}},
-    Games::PangZero::MenuItem->new( 50, $baseY, "Back to main menu"),
-    Games::PangZero::MenuItem->new( 50, $baseY += 40, "Run Demo" );
+    Games::PangZero::MenuItem->new( 50, $baseY, "Back to main menu");
+#   Games::PangZero::MenuItem->new( 50, $baseY += 40, "Run Demo" );
 
   $baseY = 110;
   $baseX = 50;
@@ -187,18 +187,18 @@ sub RunTutorialMenu {
     last if $self->{abortgame};
     $self->HandleUpDownKeys();
 
-    if ($Games::PangZero::MenuEvents{LEFT} and $self->{currentItemIndex} > 1) {
+    if ($Games::PangZero::MenuEvents{LEFT} and $self->{currentItemIndex} >= 6 and $self->{currentItemIndex} <= 10) {
       $self->SetCurrentItemIndex($self->{currentItemIndex} - 5);
     }
-    if ($Games::PangZero::MenuEvents{RIGHT} and $self->{currentItemIndex} > 1) {
+    if ($Games::PangZero::MenuEvents{RIGHT} and $self->{currentItemIndex} >= 1 and $self->{currentItemIndex} <= 5) {
       $self->SetCurrentItemIndex($self->{currentItemIndex} + 5);
     }
     if ($Games::PangZero::MenuEvents{BUTTON}) {
       if (0 == $self->{currentItemIndex}) {
         last;
-      } elsif (1 == $self->{currentItemIndex}) {
-        $self->{result} = 'demo';
-        last;
+#      } elsif (1 == $self->{currentItemIndex}) {
+#        $self->{result} = 'demo';
+#        last;
       } else {
         $self->RunTutorial($self->{currentItem}->{challenge});
       }
