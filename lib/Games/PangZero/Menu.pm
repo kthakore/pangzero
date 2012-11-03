@@ -437,7 +437,7 @@ sub RunOptionsMenu {
       } elsif ($self->{currentItemIndex} == 3) {
         $Games::PangZero::SoundEnabled = 1 - $Games::PangZero::SoundEnabled; $self->UpdateOptionsMenu();
       } elsif ($self->{currentItemIndex} == 4) {
-        Games::PangZero::SetMusicEnabled(1 - $Games::PangZero::MusicEnabled); $self->UpdateOptionsMenu();
+        Games::PangZero::Music::SetMusicEnabled(1 - $Games::PangZero::MusicEnabled); $self->UpdateOptionsMenu();
       } elsif ($self->{currentItemIndex} == 6) {
         $Games::PangZero::ShowWebsite = $Games::PangZero::ShowWebsite eq $Games::PangZero::VERSION ? 0 : $Games::PangZero::VERSION; $self->UpdateOptionsMenu();
       }
