@@ -165,7 +165,6 @@ sub Pause {
 
   SDL::Video::blit_surface($pausedSurface, SDL::Rect->new(0, 0, $pausedSurface->w, $pausedSurface->h),
                            $App, SDL::Rect->new(($PhysicalScreenWidth - $pausedSurface->w) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
-  $App->sync();
   $Keys   = ();
   $Events = ();
   while (1) { # Paused, wait for keypress
