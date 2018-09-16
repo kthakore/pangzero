@@ -243,6 +243,6 @@ $Games::PangZero::SeekerBallsEnabled     = 1;
 $Games::PangZero::FullScreen             = 1;
 $Games::PangZero::UnicodeMode            = 0;
 $Games::PangZero::Slippery               = 0;
-$Games::PangZero::ShowWebsite            = 0;
+$Games::PangZero::ShowWebsite            = 1.4.1;
 
 1;

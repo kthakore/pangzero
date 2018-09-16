@@ -104,6 +104,7 @@ sub LoadConfig {
   foreach $varname (GetConfigVars()) {
     my $pattern = $varname;
     $pattern    =~ s/\[/\\[/g;
+    $pattern    =~ s/\{/\\{/g;
     if ($text =~ /$pattern = (.+?)$/m) {
       $val = $1;
       if ($varname eq Games::PangZero::ShowWebsite) {

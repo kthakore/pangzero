@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Pang Zero
+GenericName=Super Pang Clone
+Comment=A clone and enhancement of Super Pang
+Exec=pangzero
+Icon=pangzero
+Terminal=false
+Type=Application
+Categories=Game;ArcadeGame;
