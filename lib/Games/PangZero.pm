@@ -327,7 +327,7 @@ sub Initialize {
   SDL::Video::wm_set_caption("Pang Zero $VERSION", "Pang Zero $VERSION");
   SDL::Mouse::show_cursor(0);
 
-  $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 16);
+  $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 32);
   $Background = SDL::Video::display_format($Background);
   $ScoreFont  = SDLx::SFont->new("$DataDir/brandybun3.png");
   $MenuFont   = SDLx::SFont->new("$DataDir/font2.png");
