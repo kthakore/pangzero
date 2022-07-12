@@ -53,7 +53,6 @@ sub GetConfigVars {
     Games::PangZero::MusicEnabled
     Games::PangZero::SoundEnabled
     Games::PangZero::FullScreen
-    Games::PangZero::ShowWebsite
     Games::PangZero::DeathBallsEnabled
     Games::PangZero::EarthquakeBallsEnabled
     Games::PangZero::WaterBallsEnabled
@@ -107,10 +106,7 @@ sub LoadConfig {
     $pattern    =~ s/\{/\\{/g;
     if ($text =~ /$pattern = (.+?)$/m) {
       $val = $1;
-      if ($varname eq Games::PangZero::ShowWebsite) {
-        eval( "\$$varname = '$val'" );
-      }
-      elsif($val =~ /^SDLK_\w+$/) {
+      if($val =~ /^SDLK_\w+$/) {
         eval( "\$$varname = SDL::Events::$val()" );
       }
       elsif($val =~ /^[\d\.]+$/) {

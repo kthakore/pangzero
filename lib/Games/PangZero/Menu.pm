@@ -395,7 +395,6 @@ sub UpdateOptionsMenu {
   $self->{menuItems}->[4]->SetParameter( $Games::PangZero::MusicEnabled ? 'on' : 'off');
   $self->{menuItems}->[5]->SetText('< ' . ('Windowed', 'Fullscreen', 'Widescreen')[$Games::PangZero::FullScreen]
     . ($self->{restart} ? ' (requires restart)' : '') . ' >');
-  $self->{menuItems}->[6]->SetParameter( $Games::PangZero::ShowWebsite eq $Games::PangZero::VERSION ? 'no' : 'yes' );
 }
 
 sub RunOptionsMenu {
@@ -409,7 +408,6 @@ sub RunOptionsMenu {
     Games::PangZero::MenuItem->new( 100, $y += $yinc, "Sound: ", "Press Enter to turn sound effects on/off." ),
     Games::PangZero::MenuItem->new( 100, $y += $yinc, "Music: ", "Press Enter to turn the background music on/off." ),
     Games::PangZero::MenuItem->new(  68, $y += $yinc, "Fullscreen", "Press Left/Right to set the screen mode.", "If you have a wide screen (e.g. 16:9), use the Widescreen option.", "This doesn't take effect until you quit and restart the game." ),
-    Games::PangZero::MenuItem->new( 100, $y += $yinc, "Show website at exit: ", "Should Pang Zero take you to our web site at exit?", "True enlightenment awaits you online!" ),
   );
   $self->UpdateOptionsMenu();
   push @Games::PangZero::GameObjects, (@{$self->{menuItems}});
@@ -438,8 +436,6 @@ sub RunOptionsMenu {
         $Games::PangZero::SoundEnabled = 1 - $Games::PangZero::SoundEnabled; $self->UpdateOptionsMenu();
       } elsif ($self->{currentItemIndex} == 4) {
         Games::PangZero::Music::SetMusicEnabled(1 - $Games::PangZero::MusicEnabled); $self->UpdateOptionsMenu();
-      } elsif ($self->{currentItemIndex} == 6) {
-        $Games::PangZero::ShowWebsite = $Games::PangZero::ShowWebsite eq $Games::PangZero::VERSION ? 0 : $Games::PangZero::VERSION; $self->UpdateOptionsMenu();
       }
     }
   }

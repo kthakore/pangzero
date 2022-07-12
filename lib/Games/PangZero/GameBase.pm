@@ -19,7 +19,6 @@ sub new {
 }
 
 sub Exit {
-  Games::PangZero::ShowWebPage("http://apocalypse.rulez.org/pangzero/Thanks_For_Playing_Pang_Zero_$Games::PangZero::VERSION" ) if $Games::PangZero::ShowWebsite ne $Games::PangZero::VERSION;
   exit;
 }
 
