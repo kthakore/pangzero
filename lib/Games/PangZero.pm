@@ -98,7 +98,7 @@ use vars qw (
 
 use vars qw (
   $DataDir $ScreenHeight $ScreenWidth $PhysicalScreenWidth $PhysicalScreenHeight $ScreenMargin
-  $SoundEnabled $MusicEnabled $FullScreen $ShowWebsite
+  $SoundEnabled $MusicEnabled $FullScreen
   $DeathBallsEnabled $EarthquakeBallsEnabled $WaterBallsEnabled $SeekerBallsEnabled $Slippery
   @DifficultyLevels $DifficultyLevelIndex $DifficultyLevel
   @WeaponDurations $WeaponDuration $WeaponDurationIndex
@@ -165,7 +165,6 @@ sub Pause {
 
   SDL::Video::blit_surface($pausedSurface, SDL::Rect->new(0, 0, $pausedSurface->w, $pausedSurface->h),
                            $App, SDL::Rect->new(($PhysicalScreenWidth - $pausedSurface->w) / 2, $PhysicalScreenHeight / 2 - 100, 0, 0));
-  $App->sync();
   $Keys   = ();
   $Events = ();
   while (1) { # Paused, wait for keypress
@@ -328,7 +327,7 @@ sub Initialize {
   SDL::Video::wm_set_caption("Pang Zero $VERSION", "Pang Zero $VERSION");
   SDL::Mouse::show_cursor(0);
 
-  $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 16);
+  $Background = SDL::Surface->new( Games::PangZero::Config::IsMicrosoftWindows() ? SDL_SWSURFACE() : SDL_HWSURFACE(), $App->w, $App->h, 32);
   $Background = SDL::Video::display_format($Background);
   $ScoreFont  = SDLx::SFont->new("$DataDir/brandybun3.png");
   $MenuFont   = SDLx::SFont->new("$DataDir/font2.png");
@@ -375,32 +374,6 @@ sub MainLoop {
 sub ShowErrorMessage {
   my ($message) = @_;
   print "Pang Zero $VERSION died:\n$message\n";
-}
-
-sub ShowWebPage {
-  my ($url) = @_;
-
-  return if $ENV{PANGZERO_TEST};
-
-  if (Games::PangZero::Config::IsMicrosoftWindows()) {
-    my $ws = "$DataDir/website.html";
-    $ws =~ s/\//\\\\/g;
-    exec 'cmd', '/c', $ws;
-    exit;
-  } elsif ($ENV{'DISPLAY'}) {
-    my @tryCommands = (
-      "which gnome-open > /dev/null 2>&1 && (gnome-open $url&)",
-      "which mozilla-firefox > /dev/null 2>&1 && (mozilla-firefox $url&)",
-      "which firefox > /dev/null 2>&1 && (firefox $url&)",
-      "which mozilla > /dev/null 2>&1 && (mozilla $url&)",
-      "which konqueror > /dev/null 2>&1 && (konqueror $url&)",
-    );
-    foreach (@tryCommands) {
-      return if system($_) == 0;
-    }
-  } else {
-    print "Visit $url for more info about Pang Zero $Games::PangZero::VERSION\n";
-  }
 }
 
 1;
