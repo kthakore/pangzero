@@ -245,6 +245,9 @@ sub FindVideoMode {
     return (800, 600);
   }
 
+  # The below code does not work for some reason ($modes is empty), so just hardcode this
+  return (848, 480);
+
   # Find a suitable widescreen mode
   # One native resolution:   1680 x 1050 => 1.6  : 1
   # Which could translate to: 840 x 525  => 1.6  : 1
